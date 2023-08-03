@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "velarium"
+description = "An AI personal assistant for your digital brain"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.10"
+authors = [
+    { name = "Debanjum Singh Solanky, Saba Imran" },
+]
+keywords = [
+    "productivity",
+    "NLP",
+    "AI",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Human Machine Interfaces",
+    "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+    "fastapi == 0.77.1",
+    "rich >= 13.3.1",
+    "uvicorn == 0.17.6",
+    "twilio >= 8.5.0",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/khoj-ai/velarium#readme"
+Issues = "https://github.com/khoj-ai/velarium/issues"
+Discussions = "https://github.com/khoj-ai/velarium/discussions"
+Releases = "https://github.com/khoj-ai/velarium/releases"
+
+[project.scripts]
+velarium = "velarium.main:run"
+
+[project.optional-dependencies]
+test = [
+    "pytest >= 7.1.2",
+    "freezegun >= 1.2.0",
+    "factory-boy >= 3.2.1",
+    "trio >= 0.22.0",
+]
+dev = [
+    "velarium[test]",
+    "mypy >= 1.0.1",
+    "black >= 23.1.0",
+    "pre-commit >= 3.0.4",
+]
+
+[tool.hatch.version]
+source = "vcs"
+raw-options.local_scheme = "no-local-version"  # PEP440 compliant version for PyPi
+
+[tool.hatch.build.targets.sdist]
+include = ["src/velarium"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/velarium"]
+
+[tool.mypy]
+files = "src/velarium"
+pretty = true
+strict_optional = false
+install_types = true
+ignore_missing_imports = true
+non_interactive = true
+show_error_codes = true
+warn_unused_ignores = false
+
+[tool.black]
+line-length = 120
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+markers = [
+    "chatquality: Evaluate chatbot capabilities and quality",
+]
