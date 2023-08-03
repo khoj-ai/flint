@@ -1,8 +1,10 @@
+# Standard Packages
+from functools import partial
+
 # External Packages
 from fastapi import FastAPI
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
-from langchain.memory import ConversationBufferMemory
 from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
@@ -26,8 +28,7 @@ def initialize_agent() -> LLMChain:
             HumanMessagePromptTemplate.from_template("{question}")
         ]
     )
-    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-    converse = LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=True)
+    converse = partial(LLMChain, llm=llm, prompt=prompt, verbose=True)
     return converse
 
 

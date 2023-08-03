@@ -39,7 +39,11 @@ async def chat(
         logger.error("Error in Twilio Signature")
         raise HTTPException(status_code=401, detail="Unauthorized signature")
 
-    chat_response = state.converse({"question": Body})
+    # Get Conversation History
+    chat_history = state.conversation_sessions[From]
+
+    # Get Response from Agent
+    chat_response = state.converse(memory=chat_history)({"question": Body})
     chat_response_text = chat_response["text"]
 
     # Split response into 1600 character chunks
