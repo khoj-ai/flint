@@ -29,11 +29,13 @@ classifiers = [
     "Topic :: Text Processing :: Linguistic",
 ]
 dependencies = [
-    "fastapi == 0.77.1",
+    "fastapi >= 0.77.1",
+    "uvicorn >= 0.17.6",
     "rich >= 13.3.1",
-    "uvicorn == 0.17.6",
     "twilio >= 8.5.0",
-]
+    "openai >= 0.27.8",
+    "langchain >= 0.0.187",
+ ]
 dynamic = ["version"]
 
 [project.urls]
