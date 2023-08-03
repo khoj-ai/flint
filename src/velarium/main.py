@@ -1,5 +1,6 @@
 # Standard Packages
 import logging
+import os
 
 # External Packages
 from fastapi import FastAPI
@@ -20,7 +21,10 @@ logger = logging.getLogger("velarium")
 
 
 # Initialize the Application Server
-app = FastAPI()
+if os.getenv("DEBUG", False):
+    app = FastAPI()
+else:
+    app = FastAPI(docs_url=None, redoc_url=None)
 
 
 def start_server(app: FastAPI, host="127.0.0.1", port=8488, socket=None):
