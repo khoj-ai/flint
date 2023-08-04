@@ -16,6 +16,8 @@ from langchain.prompts import (
     HumanMessagePromptTemplate,
 )
 
+from velarium.db.models import ChatHistory
+
 # Setup Logger
 rich_handler = RichHandler(rich_tracebacks=True)
 rich_handler.setFormatter(fmt=logging.Formatter(fmt="%(message)s", datefmt="[%X]"))
