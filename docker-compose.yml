@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  database:
+    image: ankane/pgvector
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  myapp:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8488:8488"
+    environment:
+      - TWILIO_ACCOUNT_SID=foo
+      - TWILIO_AUTH_TOKEN=bar
+      - OPENAI_API_KEY=blah
+      - POSTGRES_HOST=database
+      - DEBUG=true
+    depends_on:
+      - database
+    volumes:
+      - .:/app
+    # command: "--reload"
+
+volumes:
+  postgres_data:
