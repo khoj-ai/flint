@@ -38,6 +38,7 @@ async def chat(
     # Authenticate Request from Twilio
     validator = RequestValidator(auth_token)
     form_ = await request.form()
+    logger.debug(f"Request Headers: {request.headers}")
     if not validator.validate(str(request.url), form_, request.headers.get("X-Twilio-Signature", "")):
         logger.error("Error in Twilio Signature")
         raise HTTPException(status_code=401, detail="Unauthorized signature")
