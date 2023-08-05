@@ -8,11 +8,8 @@ from rich.logging import RichHandler
 import uvicorn
 
 # Internal Packages
-from velarium.configure import configure_routes, initialize_agent
+from velarium.configure import configure_routes, initialize_agent, initialize_conversation_sessions
 from velarium import state
-
-
-from velarium.db.models import ChatHistory
 
 # Setup Logger
 rich_handler = RichHandler(rich_tracebacks=True)
@@ -29,7 +26,7 @@ else:
     app = FastAPI(docs_url=None, redoc_url=None)
 
 
-def start_server(app: FastAPI, host="127.0.0.1", port=8488, socket=None):
+def start_server(app: FastAPI, host="0.0.0.0", port=8488, socket=None):
     logger.info("🌖 Velarium is ready to use")
     if socket:
         uvicorn.run(app, proxy_headers=True, uds=socket, log_level="debug", use_colors=True, log_config=None)
@@ -40,6 +37,10 @@ def start_server(app: FastAPI, host="127.0.0.1", port=8488, socket=None):
 
 def run():
     state.converse = initialize_agent()
+    try:
+        state.conversation_sessions = initialize_conversation_sessions()
+    except Exception as e:
+        logger.error(f"Failed to initialize conversation sessions: {e}. You may need to run python src/velarium/manage.py migrate", exc_info=True)
     configure_routes(app)
     start_server(app)
 

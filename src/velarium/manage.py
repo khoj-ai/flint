@@ -1,4 +1,6 @@
 def init_django():
+    import os
+
     import django
     from django.conf import settings
 
@@ -14,10 +16,10 @@ def init_django():
         DATABASES={
             'default': {
                 'ENGINE': 'django.db.backends.postgresql',
-                'NAME': 'whatsapp_chatbot',
-                'USER': 'postgres',
-                'PASSWORD': 'postgres',
-                'HOST': '127.0.0.1',
+                'NAME': os.environ.get("POSTGRES_DB", "postgres"),
+                'USER': os.environ.get("POSTGRES_USER", "postgres"),
+                'PASSWORD': os.environ.get("POSTGRES_PASSWORD", "postgres"),
+                'HOST': os.environ.get("POSTGRES_HOST", "localhost"),
                 'PORT': '5432',
             }
         },
