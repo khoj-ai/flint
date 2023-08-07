@@ -27,7 +27,19 @@ You can converse with it anytime over Whatsapp via Twilio.<br />
 
 </div>
 
-## Run
+## ⭐️ Chat with Khoj on WhatsApp
+
+If you want to start chatting with our cloud-instance of Khoj right away, you have two options:
+
+1. 🪧 Use the QR code
+    - Scan the QR code below using your phone's camera.
+[![QR Code](assets/khoj-qr-code.png)](https://wa.me/18488004242)
+2. 📞 Directly use the phone number
+    - Add the number `+1 (848) 800-4242` to your contacts and send a message to it on WhatsApp.
+
+## Run it yourself
+
+You can get setup with your own instance of Khoj via WhatsApp in a few simple steps.
 
 ### Start the service
 
@@ -36,6 +48,15 @@ You can converse with it anytime over Whatsapp via Twilio.<br />
 ```bash
 $ docker-compose up
 ```
+
+#### Test that it's working
+
+1. Go to `localhost:8488/docs` in your browser. You should see the Swagger UI.
+2. Click on the `/dev/chat` endpoint.
+3. Click on the "Try it out" button.
+4. Enter any prompt in the `Body` field and click on the "Execute" button. You should get a response from the velarium service.
+
+If this didn't work, you might need to debug what's wrong.
 
 ### Setup Ngrok
 1. Install [ngrok](https://ngrok.com/download).
@@ -54,7 +75,7 @@ $ ngrok http 8488
 
 ### Completion
 
-And you're done! You can now chat with your bot over Whatsapp.
+And you're done! You can now chat with your bot over Whatsapp. When you're done finalizing your bot, make sure to flip the `DEBUG` flag in the `docker-compose.yml` file to `False` or remove it altogether.
 
 ## Usage
 
