@@ -71,30 +71,31 @@ async def chat(
 
     return message.sid
 
-# Setup API Endpoints
-@api.post("/dev")
-async def chat_dev(
-    request: Request,
-    Body: str,
-) -> Response:
-    # Get the user object
-    target_username = "dev"
-    user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(username=target_username)
-    user_exists = await sync_to_async(user.exists)()
-    if user_exists:
-        user = await sync_to_async(user.get)()
-    else:
-        user = await sync_to_async(User.objects.create)(username=target_username)
-        await sync_to_async(user.save)()
-    uuid = user.khojuser.uuid
+if os.getenv("DEBUG", False):
+    # Setup API Endpoints
+    @api.post("/dev/chat")
+    async def chat_dev(
+        request: Request,
+        Body: str,
+    ) -> Response:
+        # Get the user object
+        target_username = "dev"
+        user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(username=target_username)
+        user_exists = await sync_to_async(user.exists)()
+        if user_exists:
+            user = await sync_to_async(user.get)()
+        else:
+            user = await sync_to_async(User.objects.create)(username=target_username)
+            await sync_to_async(user.save)()
+        uuid = user.khojuser.uuid
 
-    # Get Conversation History
-    chat_history = state.conversation_sessions[uuid]
+        # Get Conversation History
+        chat_history = state.conversation_sessions[uuid]
 
-    # Get Response from Agent
-    chat_response = state.converse(memory=chat_history)({"question": Body})
-    chat_response_text = chat_response["text"]
+        # Get Response from Agent
+        chat_response = state.converse(memory=chat_history)({"question": Body})
+        chat_response_text = chat_response["text"]
 
-    asyncio.create_task(save_conversation(user, Body, chat_response_text))
+        asyncio.create_task(save_conversation(user, Body, chat_response_text))
 
-    return chat_response_text
+        return chat_response_text
