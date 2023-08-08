@@ -3,7 +3,7 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "velarium"
+name = "flint"
 description = "An AI personal assistant for your digital brain"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -45,13 +45,13 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-Homepage = "https://github.com/khoj-ai/velarium#readme"
-Issues = "https://github.com/khoj-ai/velarium/issues"
-Discussions = "https://github.com/khoj-ai/velarium/discussions"
-Releases = "https://github.com/khoj-ai/velarium/releases"
+Homepage = "https://github.com/khoj-ai/flint#readme"
+Issues = "https://github.com/khoj-ai/flint/issues"
+Discussions = "https://github.com/khoj-ai/flint/discussions"
+Releases = "https://github.com/khoj-ai/flint/releases"
 
 [project.scripts]
-velarium = "velarium.main:run"
+flint = "flint.main:run"
 
 [project.optional-dependencies]
 test = [
@@ -61,7 +61,7 @@ test = [
     "trio >= 0.22.0",
 ]
 dev = [
-    "velarium[test]",
+    "flint[test]",
     "mypy >= 1.0.1",
     "black >= 23.1.0",
     "pre-commit >= 3.0.4",
@@ -72,13 +72,13 @@ source = "vcs"
 raw-options.local_scheme = "no-local-version"  # PEP440 compliant version for PyPi
 
 [tool.hatch.build.targets.sdist]
-include = ["src/velarium"]
+include = ["src/flint"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/velarium"]
+packages = ["src/flint"]
 
 [tool.mypy]
-files = "src/velarium"
+files = "src/flint"
 pretty = true
 strict_optional = false
 install_types = true

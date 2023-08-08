@@ -14,8 +14,8 @@ from twilio.request_validator import RequestValidator
 from twilio.rest import Client
 
 # Internal Packages
-from velarium import state
-from velarium.configure import save_conversation
+from flint import state
+from flint.configure import save_conversation
 
 # Initialize Router
 api = APIRouter()

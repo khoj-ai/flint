@@ -1,4 +1,4 @@
-from velarium.manage import init_django
+from flint.manage import init_django
 init_django()
 
 import uuid

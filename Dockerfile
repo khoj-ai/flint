@@ -19,7 +19,7 @@ EXPOSE 8488
 # ENV POSTGRES_HOST=$POSTGRES_HOST
 
 # # Run migrations
-# RUN python src/velarium/manage.py migrate
+# RUN python src/flint/manage.py migrate
 
-# Run src.velarium.main.py when the container launches
-ENTRYPOINT ["python", "src/velarium/main.py"]
+# Run src.flint.main.py when the container launches
+ENTRYPOINT ["python", "src/flint/main.py"]

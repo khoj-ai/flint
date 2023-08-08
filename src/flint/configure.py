@@ -16,7 +16,7 @@ from langchain.prompts import (
 from langchain.memory import ConversationBufferMemory
 
 # Internal Packages
-from velarium.db.models import Conversation
+from flint.db.models import Conversation
 
 from django.contrib.auth.models import User
 
@@ -66,6 +66,6 @@ async def save_conversation(user, message, response):
 def configure_routes(app: FastAPI):
     "Configure the API Routes"
     logger.info("Including routes")
-    from velarium.routers.api import api
+    from flint.routers.api import api
 
     app.include_router(api, prefix="/api")

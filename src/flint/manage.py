@@ -11,7 +11,7 @@ def init_django():
         INSTALLED_APPS=[
             "django.contrib.auth",
             "django.contrib.contenttypes",
-            'velarium.db',
+            'flint.db',
         ],
         DATABASES={
             'default': {

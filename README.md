@@ -20,7 +20,7 @@
 
 ***
 
-velarium is an open source, AI personal assistant.<br />
+flint is an open source, AI personal assistant.<br />
 You can converse with it anytime over Whatsapp via Twilio.<br />
 
 ***
@@ -54,7 +54,7 @@ $ docker-compose up
 1. Go to `localhost:8488/docs` in your browser. You should see the Swagger UI.
 2. Click on the `/dev/chat` endpoint.
 3. Click on the "Try it out" button.
-4. Enter any prompt in the `Body` field and click on the "Execute" button. You should get a response from the velarium service.
+4. Enter any prompt in the `Body` field and click on the "Execute" button. You should get a response from the flint service.
 
 If this didn't work, you might need to debug what's wrong.
 
@@ -71,7 +71,7 @@ $ ngrok http 8488
 2. In the [Twilio console](https://console.twilio.com/us1/develop/sms/try-it-out/whatsapp-learn), setup a Sanbox for Whatsapp.
 3. Send a message to the Twilio Whatsapp number with the secret code. You should get a response first from Twilio
 3. In the Sandbox Setings tab, set the webhook to the ngrok url at the `/api/chat` endpoint. From the previous example, that would be `https://abcd-ef-ghi-123-456.ngrok-free.app/api/chat` under the "WHEN A MESSAGE COMES IN" section.
-4. Send a message to the Twilio Whatsapp number. You should get a response from the velarium service.
+4. Send a message to the Twilio Whatsapp number. You should get a response from the flint service.
 
 ### Completion
 
