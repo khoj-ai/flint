@@ -35,7 +35,7 @@ If you want to start chatting with our cloud-instance of Khoj right away, you ha
     - Scan the QR code below using your phone's camera.
 [![QR Code](assets/khoj-qr-code.png)](https://wa.me/18488004242)
 2. 📞 Directly use the phone number
-    - Add the number `+1 (848) 800-4242` to your contacts and send a message to it on WhatsApp.
+    - Add the number [+1 (848) 800-4242](https://wa.me/18488004242)) to your contacts and send a message to it on WhatsApp.
 
 ## Run it yourself
 
