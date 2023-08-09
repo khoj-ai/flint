@@ -5,7 +5,6 @@ from collections import defaultdict
 # External Packages
 from fastapi import FastAPI
 from asgiref.sync import sync_to_async
-from langchain.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
 from langchain.prompts import (
     ChatPromptTemplate,
@@ -13,10 +12,11 @@ from langchain.prompts import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationTokenBufferMemory
 
 # Internal Packages
 from flint.db.models import Conversation
+from flint.state import llm
 
 from django.contrib.auth.models import User
 
@@ -26,13 +26,12 @@ logger = logging.getLogger(__name__)
 
 def initialize_agent() -> LLMChain:
     "Initialize the Conversational Chain with Memory"
-    llm = ChatOpenAI(temperature=0)
     prompt = ChatPromptTemplate(
         messages=[
             SystemMessagePromptTemplate.from_template(
                 f"""
-    You are Khoj, a friendly, smart and helpful personal assistant.
-    Use your general knowledge and our past conversations to provide assistance.
+    You are Khoj, a friendly, smart and helpful personal thought partner.
+    Use your general knowledge and past conversations to chat with your human.
     """.strip()
             ),
             MessagesPlaceholder(variable_name="chat_history"),
@@ -43,10 +42,10 @@ def initialize_agent() -> LLMChain:
     return converse
 
 
-def initialize_conversation_sessions() -> defaultdict[str, ConversationBufferMemory]:
+def initialize_conversation_sessions() -> defaultdict[str, ConversationTokenBufferMemory]:
     "Initialize the Conversation Sessions"
     logger.info("Initializing Conversation Sessions")
-    conversation_sessions = defaultdict(lambda: ConversationBufferMemory(memory_key="chat_history", return_messages=True))
+    conversation_sessions = defaultdict(lambda: ConversationTokenBufferMemory(memory_key="chat_history", return_messages=True, max_token_limit=4096, llm=llm))
     users = User.objects.all()
     for user in users:
         conversations = Conversation.objects.filter(user=user)[:10]
