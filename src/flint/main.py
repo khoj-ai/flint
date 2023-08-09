@@ -1,12 +1,14 @@
 # Standard Packages
 import logging
 import os
+import threading
 
 # External Packages
 from fastapi import FastAPI
 from rich.logging import RichHandler
 import uvicorn
 from fastapi import Request
+import schedule
 
 
 # Internal Packages
@@ -44,6 +46,12 @@ def start_server(app: FastAPI, host="0.0.0.0", port=8488, socket=None):
         uvicorn.run(app, host=host, port=port, log_level="debug", use_colors=True, log_config=None)
     logger.info("🌒 Stopping flint")
 
+def poll_task_scheduler():
+    timer_thread = threading.Timer(interval=60.0, function=poll_task_scheduler)
+    timer_thread.daemon = True
+    timer_thread.start()
+    schedule.run_pending()
+
 
 def run():
     state.converse = initialize_agent()
@@ -52,6 +60,7 @@ def run():
     except Exception as e:
         logger.error(f"Failed to initialize conversation sessions: {e}. You may need to run python src/flint/manage.py migrate", exc_info=True)
     configure_routes(app)
+    poll_task_scheduler()
     start_server(app)
 
 

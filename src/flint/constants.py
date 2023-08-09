@@ -1,0 +1,1 @@
+telemetry_server = "https://khoj.beta.haletic.com/v1/telemetry"
