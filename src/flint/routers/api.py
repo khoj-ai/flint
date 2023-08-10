@@ -11,7 +11,6 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from fastapi.params import Form
 import openai
-import requests
 from twilio.request_validator import RequestValidator
 from twilio.rest import Client
 
@@ -82,12 +81,8 @@ async def chat(
 
     asyncio.create_task(save_conversation(user, user_message, chat_response_text, user_message_type))
 
-    # Split response into 1600 character chunks
-    chunks = [chat_response_text[i : i + 1600] for i in range(0, len(chat_response_text), 1600)]
-    for chunk in chunks:
-        message = twillio_client.messages.create(body=chunk, from_=To, to=From)
+    return send_message(twillio_client, chat_response_text, sender=To, receiver=From)
 
-    return message.sid
 
 if os.getenv("DEBUG", False):
     # Setup API Endpoints
@@ -117,6 +112,15 @@ if os.getenv("DEBUG", False):
         asyncio.create_task(save_conversation(user, Body, chat_response_text))
 
         return chat_response_text
+
+
+def send_message(client: Client, message_text, sender, receiver):
+    "Send message_text from sender to receiver using the Twilio client"
+    # Split response into 1600 character chunks
+    chunks = [message_text[i : i + 1600] for i in range(0, len(message_text), 1600)]
+    for chunk in chunks:
+        message = client.messages.create(body=chunk, from_=sender, to=receiver)
+    return message.sid
 
 
 def transcribe_audio_message(audio_url: str, uuid: str) -> str:
