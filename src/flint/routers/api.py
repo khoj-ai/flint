@@ -5,17 +5,20 @@ import asyncio
 from typing import Optional
 
 # External Packages
+from asgiref.sync import sync_to_async
+from django.contrib.auth.models import User
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from fastapi.params import Form
-from django.contrib.auth.models import User
-from asgiref.sync import sync_to_async
+import openai
+import requests
 from twilio.request_validator import RequestValidator
 from twilio.rest import Client
 
 # Internal Packages
 from flint import state
 from flint.configure import save_conversation
+from flint.routers.helpers import ogg2mp3
 
 # Initialize Router
 api = APIRouter()
@@ -34,7 +37,10 @@ async def chat(
     From: str = Form(...),
     Body: Optional[str] = Form(None),
     To: str = Form(...),
+    MediaUrl0: Optional[str] = Form(None),
+    MediaContentType0: Optional[str] = Form(None),
 ) -> Response:
+
     # Authenticate Request from Twilio
     validator = RequestValidator(auth_token)
     form_ = await request.form()
@@ -55,14 +61,44 @@ async def chat(
         user = await sync_to_async(user.get)()
     uuid = user.khojuser.uuid
 
+    # Set user message to the body of the request
+    user_message = Body
+    # Check if message is an audio message
+    if MediaUrl0 is not None and MediaContentType0 is not None and MediaContentType0.startswith("audio/"):
+        audio_url = MediaUrl0
+        audio_type = MediaContentType0.split("/")[1]
+        logger.info(f"Received audio message from {From} with url {audio_url} and type {audio_type}")
+
+        # Convert the OGG audio to MP3
+        mp3_file_path = ogg2mp3(audio_url, uuid)
+
+        # Transcribe the audio message using WhisperAPI
+        try:
+            # Read the audio message from MP3
+            logger.info(f"Transcribing audio file {mp3_file_path}")
+            with open(mp3_file_path, "rb") as audio_file:
+                # Call the OpenAI API to transcribe the audio using Whisper API
+                transcribed = openai.Audio.translate(
+                    model="whisper-1",
+                    file=audio_file,
+                    # language="en",
+                    # temperature=0.5,
+                )
+                user_message = transcribed.get("text")
+        except:
+            logger.error(f"Failed to transcribe audio by {uuid}")
+        finally:
+            # Delete the audio MP3 file
+            os.remove(mp3_file_path)
+
     # Get Conversation History
     chat_history = state.conversation_sessions[uuid]
 
     # Get Response from Agent
-    chat_response = state.converse(memory=chat_history)({"question": Body})
+    chat_response = state.converse(memory=chat_history)({"question": user_message})
     chat_response_text = chat_response["text"]
 
-    asyncio.create_task(save_conversation(user, Body, chat_response_text))
+    asyncio.create_task(save_conversation(user, user_message, chat_response_text))
 
     # Split response into 1600 character chunks
     chunks = [chat_response_text[i : i + 1600] for i in range(0, len(chat_response_text), 1600)]

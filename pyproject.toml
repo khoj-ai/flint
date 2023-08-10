@@ -43,6 +43,7 @@ dependencies = [
     "django-phonenumber-field == 7.1.0",
     "phonenumbers == 8.13.17",
     "tiktoken >= 0.3.0",
+    "pydub >= 0.25.1",
  ]
 dynamic = ["version"]
 
