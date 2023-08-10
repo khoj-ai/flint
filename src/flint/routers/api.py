@@ -18,7 +18,8 @@ from twilio.rest import Client
 # Internal Packages
 from flint import state
 from flint.configure import save_conversation
-from flint.routers.helpers import ogg2mp3
+from flint.routers.helpers import download_audio_message
+
 
 # Initialize Router
 api = APIRouter()
@@ -40,7 +41,6 @@ async def chat(
     MediaUrl0: Optional[str] = Form(None),
     MediaContentType0: Optional[str] = Form(None),
 ) -> Response:
-
     # Authenticate Request from Twilio
     validator = RequestValidator(auth_token)
     form_ = await request.form()
@@ -68,28 +68,7 @@ async def chat(
         audio_url = MediaUrl0
         audio_type = MediaContentType0.split("/")[1]
         logger.info(f"Received audio message from {From} with url {audio_url} and type {audio_type}")
-
-        # Convert the OGG audio to MP3
-        mp3_file_path = ogg2mp3(audio_url, uuid)
-
-        # Transcribe the audio message using WhisperAPI
-        try:
-            # Read the audio message from MP3
-            logger.info(f"Transcribing audio file {mp3_file_path}")
-            with open(mp3_file_path, "rb") as audio_file:
-                # Call the OpenAI API to transcribe the audio using Whisper API
-                transcribed = openai.Audio.translate(
-                    model="whisper-1",
-                    file=audio_file,
-                    # language="en",
-                    # temperature=0.5,
-                )
-                user_message = transcribed.get("text")
-        except:
-            logger.error(f"Failed to transcribe audio by {uuid}")
-        finally:
-            # Delete the audio MP3 file
-            os.remove(mp3_file_path)
+        user_message = transcribe_audio_message(audio_url, uuid)
 
     # Get Conversation History
     chat_history = state.conversation_sessions[uuid]
@@ -135,3 +114,25 @@ if os.getenv("DEBUG", False):
         asyncio.create_task(save_conversation(user, Body, chat_response_text))
 
         return chat_response_text
+
+
+def transcribe_audio_message(audio_url: str, uuid: str) -> str:
+    "Transcribe audio message from twilio using OpenAI whisper"
+    # Download audio file
+    audio_message_file = download_audio_message(audio_url, uuid)
+
+    # Transcribe the audio message using WhisperAPI
+    logger.info(f"Transcribing audio file {audio_message_file}")
+    try:
+        # Read the audio message from MP3
+        with open(audio_message_file, "rb") as audio_file:
+            # Call the OpenAI API to transcribe the audio using Whisper API
+            transcribed = openai.Audio.translate(model="whisper-1", file=audio_file)
+            user_message = transcribed.get("text")
+    except:
+        logger.error(f"Failed to transcribe audio by {uuid}")
+    finally:
+        # Delete the audio MP3 file
+        os.remove(audio_message_file)
+
+    return user_message
