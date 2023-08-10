@@ -20,7 +20,7 @@ rich_handler = RichHandler(rich_tracebacks=True)
 rich_handler.setFormatter(fmt=logging.Formatter(fmt="%(message)s", datefmt="[%X]"))
 logging.basicConfig(handlers=[rich_handler], level=logging.DEBUG)
 
-logger = logging.getLogger("flint")
+logger = logging.getLogger()
 
 
 # Initialize the Application Server
@@ -54,6 +54,11 @@ def poll_task_scheduler():
 
 
 def run():
+    file_handler = logging.FileHandler("flint.log")
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    logger.addHandler(file_handler)
+
     state.converse = initialize_agent()
     try:
         state.conversation_sessions = initialize_conversation_sessions()
