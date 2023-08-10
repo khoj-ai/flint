@@ -61,12 +61,15 @@ async def chat(
         user = await sync_to_async(user.get)()
     uuid = user.khojuser.uuid
 
-    # Set user message to the body of the request
+    # Initialize user message to the body of the request
     user_message = Body
+    user_message_type = "text"
+
     # Check if message is an audio message
     if MediaUrl0 is not None and MediaContentType0 is not None and MediaContentType0.startswith("audio/"):
         audio_url = MediaUrl0
         audio_type = MediaContentType0.split("/")[1]
+        user_message_type = "voice_message"
         logger.info(f"Received audio message from {From} with url {audio_url} and type {audio_type}")
         user_message = transcribe_audio_message(audio_url, uuid)
 
@@ -77,7 +80,7 @@ async def chat(
     chat_response = state.converse(memory=chat_history)({"question": user_message})
     chat_response_text = chat_response["text"]
 
-    asyncio.create_task(save_conversation(user, user_message, chat_response_text))
+    asyncio.create_task(save_conversation(user, user_message, chat_response_text, user_message_type))
 
     # Split response into 1600 character chunks
     chunks = [chat_response_text[i : i + 1600] for i in range(0, len(chat_response_text), 1600)]

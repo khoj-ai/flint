@@ -62,7 +62,7 @@ def initialize_conversation_sessions() -> defaultdict[str, ConversationTokenBuff
 
     return conversation_sessions
     
-async def save_conversation(user, message, response):
+async def save_conversation(user, message, response, user_message_type="text"):
     "Save the conversation to the database"
     logger.info(f"💾 Saving conversation to the database and logging telemetry")
 
@@ -70,6 +70,7 @@ async def save_conversation(user, message, response):
         telemetry_type='api',
         user_guid=str(user.khojuser.uuid),
         api='chat_whatsapp',
+        properties={"user_message_type": user_message_type}
     )
     await sync_to_async(Conversation.objects.create)(user=user, user_message=message, bot_message=response)
 
