@@ -27,6 +27,10 @@ auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 twillio_client = Client(account_sid, auth_token)
 
 
+@api.get("/health")
+async def health() -> Response:
+    return Response(status_code=200)
+
 # Setup API Endpoints
 @api.post("/chat")
 async def chat(
