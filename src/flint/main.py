@@ -29,6 +29,7 @@ if os.getenv("DEBUG", False):
 else:
     app = FastAPI(docs_url=None, redoc_url=None)
 
+
 @app.middleware("http")
 async def set_scheme(request: Request, call_next):
     forwarded_proto = request.headers.get("X-Forwarded-Proto")
@@ -45,6 +46,7 @@ def start_server(app: FastAPI, host="0.0.0.0", port=8488, socket=None):
     else:
         uvicorn.run(app, host=host, port=port, log_level="debug", use_colors=True, log_config=None)
     logger.info("🌒 Stopping flint")
+
 
 def poll_task_scheduler():
     timer_thread = threading.Timer(interval=60.0, function=poll_task_scheduler)

@@ -20,7 +20,7 @@ from langchain.memory import ConversationTokenBufferMemory
 from flint.db.models import Conversation
 from flint.state import llm, telemetry
 from flint.constants import telemetry_server
-from flint.routers.helpers import log_telemetry
+from flint.helpers import log_telemetry
 
 
 from django.contrib.auth.models import User

@@ -17,7 +17,7 @@ from twilio.rest import Client
 # Internal Packages
 from flint import state
 from flint.configure import save_conversation
-from flint.routers.helpers import transcribe_audio_message
+from flint.helpers import transcribe_audio_message
 
 
 # Initialize Router
