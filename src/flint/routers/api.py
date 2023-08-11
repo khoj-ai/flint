@@ -17,7 +17,7 @@ from twilio.rest import Client
 # Internal Packages
 from flint import state
 from flint.configure import save_conversation
-from flint.routers.helpers import download_audio_message
+from flint.routers.helpers import transcribe_audio_message
 
 
 # Initialize Router
@@ -58,30 +58,8 @@ async def chat(
         await sync_to_async(user.save)()
     else:
         user = await sync_to_async(user.get)()
-    uuid = user.khojuser.uuid
 
-    # Initialize user message to the body of the request
-    user_message = Body
-    user_message_type = "text"
-
-    # Check if message is an audio message
-    if MediaUrl0 is not None and MediaContentType0 is not None and MediaContentType0.startswith("audio/"):
-        audio_url = MediaUrl0
-        audio_type = MediaContentType0.split("/")[1]
-        user_message_type = "voice_message"
-        logger.info(f"Received audio message from {From} with url {audio_url} and type {audio_type}")
-        user_message = transcribe_audio_message(audio_url, uuid)
-
-    # Get Conversation History
-    chat_history = state.conversation_sessions[uuid]
-
-    # Get Response from Agent
-    chat_response = state.converse(memory=chat_history)({"question": user_message})
-    chat_response_text = chat_response["text"]
-
-    asyncio.create_task(save_conversation(user, user_message, chat_response_text, user_message_type))
-
-    return send_message(twillio_client, chat_response_text, sender=To, receiver=From)
+    asyncio.create_task(respond_to_user(Body, user, MediaUrl0, MediaContentType0, From, To))
 
 
 if os.getenv("DEBUG", False):
@@ -114,32 +92,32 @@ if os.getenv("DEBUG", False):
         return chat_response_text
 
 
-def send_message(client: Client, message_text, sender, receiver):
-    "Send message_text from sender to receiver using the Twilio client"
+async def respond_to_user(message: str, user, MediaUrl0, MediaContentType0, From, To):
+    # Initialize user message to the body of the request
+    uuid = user.khojuser.uuid
+    user_message = message
+    user_message_type = "text"
+
+    # Check if message is an audio message
+    if MediaUrl0 is not None and MediaContentType0 is not None and MediaContentType0.startswith("audio/"):
+        audio_url = MediaUrl0
+        audio_type = MediaContentType0.split("/")[1]
+        user_message_type = "voice_message"
+        logger.info(f"Received audio message from {From} with url {audio_url} and type {audio_type}")
+        user_message = transcribe_audio_message(audio_url, uuid, logger)
+
+    # Get Conversation History
+    chat_history = state.conversation_sessions[uuid]
+
+    # Get Response from Agent
+    chat_response = state.converse(memory=chat_history)({"question": user_message})
+    chat_response_text = chat_response["text"]
+
+    asyncio.create_task(save_conversation(user, user_message, chat_response_text, user_message_type))
+
     # Split response into 1600 character chunks
-    chunks = [message_text[i : i + 1600] for i in range(0, len(message_text), 1600)]
+    chunks = [chat_response_text[i : i + 1600] for i in range(0, len(chat_response_text), 1600)]
     for chunk in chunks:
-        message = client.messages.create(body=chunk, from_=sender, to=receiver)
+        message = twillio_client.messages.create(body=chunk, from_=To, to=From)
+
     return message.sid
-
-
-def transcribe_audio_message(audio_url: str, uuid: str) -> str:
-    "Transcribe audio message from twilio using OpenAI whisper"
-    # Download audio file
-    audio_message_file = download_audio_message(audio_url, uuid)
-
-    # Transcribe the audio message using WhisperAPI
-    logger.info(f"Transcribing audio file {audio_message_file}")
-    try:
-        # Read the audio message from MP3
-        with open(audio_message_file, "rb") as audio_file:
-            # Call the OpenAI API to transcribe the audio using Whisper API
-            transcribed = openai.Audio.translate(model="whisper-1", file=audio_file)
-            user_message = transcribed.get("text")
-    except:
-        logger.error(f"Failed to transcribe audio by {uuid}")
-    finally:
-        # Delete the audio MP3 file
-        os.remove(audio_message_file)
-
-    return user_message

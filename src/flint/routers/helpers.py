@@ -1,7 +1,9 @@
 # Standard Packages
 import datetime
+from logging import Logger
 import os
 import time
+import openai
 import requests
 import urllib.request
 
@@ -39,3 +41,25 @@ def download_audio_message(audio_url, user_id):
     urllib.request.urlretrieve(url, filepath)
     # Return file path to audio message
     return os.path.join(os.getcwd(), filepath)
+
+
+def transcribe_audio_message(audio_url: str, uuid: str, logger: Logger) -> str:
+    "Transcribe audio message from twilio using OpenAI whisper"
+    # Download audio file
+    audio_message_file = download_audio_message(audio_url, uuid)
+
+    # Transcribe the audio message using WhisperAPI
+    logger.info(f"Transcribing audio file {audio_message_file}")
+    try:
+        # Read the audio message from MP3
+        with open(audio_message_file, "rb") as audio_file:
+            # Call the OpenAI API to transcribe the audio using Whisper API
+            transcribed = openai.Audio.translate(model="whisper-1", file=audio_file)
+            user_message = transcribed.get("text")
+    except:
+        logger.error(f"Failed to transcribe audio by {uuid}")
+    finally:
+        # Delete the audio MP3 file
+        os.remove(audio_message_file)
+
+    return user_message
