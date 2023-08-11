@@ -47,7 +47,7 @@ def save_khoj_user(sender, instance, **kwargs):
 
 class Conversation(BaseModel):
     id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=False, related_name="conversations")
     user_message = models.TextField()
     bot_message = models.TextField()
 

@@ -50,7 +50,7 @@ def initialize_agent() -> LLMChain:
 def initialize_conversation_sessions() -> defaultdict[str, ConversationTokenBufferMemory]:
     "Initialize the Conversation Sessions"
     logger.info("Initializing Conversation Sessions")
-    conversation_sessions = defaultdict(lambda: ConversationTokenBufferMemory(memory_key="chat_history", return_messages=True, max_token_limit=4096, llm=llm))
+    conversation_sessions = defaultdict(lambda: ConversationTokenBufferMemory(memory_key="chat_history", return_messages=True, max_token_limit=3996, llm=llm))
     users = User.objects.all()
     for user in users:
         conversations = Conversation.objects.filter(user=user)[:10]
