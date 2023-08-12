@@ -1,22 +1,26 @@
 # Standard Packages
+import asyncio
+from datetime import datetime
 import logging
 import os
-import asyncio
 from typing import Optional
 
 # External Packages
 from asgiref.sync import sync_to_async
-from django.contrib.auth.models import User
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from fastapi.params import Form
+from langchain import LLMChain
 from twilio.request_validator import RequestValidator
 from twilio.rest import Client
 
 # Internal Packages
 from flint import state
-from flint.configure import save_conversation
+from flint.configure import configure_chat_prompt, save_conversation
 from flint.helpers import transcribe_audio_message
+
+# Keep Django module import here to avoid import ordering errors
+from django.contrib.auth.models import User
 
 
 # Initialize Router
@@ -87,7 +91,7 @@ if os.getenv("DEBUG", False):
         chat_history = state.conversation_sessions[uuid]
 
         # Get Response from Agent
-        chat_response = state.converse(memory=chat_history)({"question": Body})
+        chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=chat_history)({"question": Body})
         chat_response_text = chat_response["text"]
 
         asyncio.create_task(save_conversation(user, Body, chat_response_text))
@@ -113,7 +117,7 @@ async def respond_to_user(message: str, user, MediaUrl0, MediaContentType0, From
     chat_history = state.conversation_sessions[uuid]
 
     # Get Response from Agent
-    chat_response = state.converse(memory=chat_history)({"question": user_message})
+    chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=chat_history)({"question": user_message})
     chat_response_text = chat_response["text"]
 
     asyncio.create_task(save_conversation(user, user_message, chat_response_text, user_message_type))

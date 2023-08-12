@@ -12,7 +12,7 @@ import schedule
 
 
 # Internal Packages
-from flint.configure import configure_routes, initialize_agent, initialize_conversation_sessions
+from flint.configure import configure_routes, initialize_conversation_sessions
 from flint import state
 
 # Setup Logger
@@ -61,7 +61,6 @@ def run():
     file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     logger.addHandler(file_handler)
 
-    state.converse = initialize_agent()
     try:
         state.conversation_sessions = initialize_conversation_sessions()
     except Exception as e:
