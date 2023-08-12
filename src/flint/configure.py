@@ -1,50 +1,44 @@
 # Standard Packages
 from functools import partial
 from collections import defaultdict
+import logging
 
 # External Packages
-import schedule
-import requests
 from fastapi import FastAPI
 from asgiref.sync import sync_to_async
 from langchain.chains import LLMChain
 from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
-    SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
 from langchain.memory import ConversationTokenBufferMemory
+from langchain.schema import SystemMessage
+import requests
+import schedule
 
 # Internal Packages
 from flint.db.models import Conversation
 from flint.state import llm, telemetry
 from flint.constants import telemetry_server
 from flint.helpers import log_telemetry
+from flint.prompt import system_prompt
 
-
+# Keep Django module import here to avoid import ordering errors
 from django.contrib.auth.models import User
 
-import logging
 
 logger = logging.getLogger(__name__)
 
-def initialize_agent() -> LLMChain:
-    "Initialize the Conversational Chain with Memory"
-    prompt = ChatPromptTemplate(
+
+def configure_chat_prompt():
+    return ChatPromptTemplate(
         messages=[
-            SystemMessagePromptTemplate.from_template(
-                f"""
-    You are Khoj, a friendly, smart and helpful personal thought partner.
-    Use your general knowledge and past conversations to chat with your human.
-    """.strip()
-            ),
+            SystemMessage(content=system_prompt.format()),
             MessagesPlaceholder(variable_name="chat_history"),
             HumanMessagePromptTemplate.from_template("{question}")
         ]
     )
-    converse = partial(LLMChain, llm=llm, prompt=prompt, verbose=True)
-    return converse
 
 
 def initialize_conversation_sessions() -> defaultdict[str, ConversationTokenBufferMemory]:

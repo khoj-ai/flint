@@ -1,5 +1,5 @@
 # Standard Packages
-import datetime
+from datetime import datetime
 from logging import Logger
 import os
 import time
@@ -9,6 +9,10 @@ import urllib.request
 
 # Internal Packages
 from flint.state import telemetry
+
+
+def get_date():
+    return datetime.utcnow().strftime('%Y-%m-%d %A')
 
 
 def log_telemetry(
@@ -21,7 +25,7 @@ def log_telemetry(
         "api": api,
         "telemetry_type": telemetry_type,
         "server_id": user_guid,
-        "timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         "os": "whatsapp",
     }
 
