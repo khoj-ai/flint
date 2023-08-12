@@ -10,7 +10,6 @@ from django.contrib.auth.models import User
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from fastapi.params import Form
-import openai
 from twilio.request_validator import RequestValidator
 from twilio.rest import Client
 

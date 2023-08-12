@@ -57,7 +57,7 @@ def poll_task_scheduler():
 
 def run():
     file_handler = logging.FileHandler("flint.log")
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     logger.addHandler(file_handler)
 
