@@ -1,6 +1,7 @@
 # Standard packages
 import logging
 from enum import Enum
+import time
 from datetime import datetime, timedelta
 import asyncio
 import os
@@ -68,7 +69,6 @@ class Command(BaseCommand):
         for khoj_user in khoj_users:
             user = khoj_user.user
             logger.info(f"Sending message '{bot_message}' to user {user.id}")
-            asyncio.run(save_conversation(user, '', bot_message, user_message_type='system'))
             try:
                 message = twillio_client.messages.create(
                     body=bot_message,
@@ -76,6 +76,8 @@ class Command(BaseCommand):
                     to=f'whatsapp:{khoj_user.phone_number}'
                 )
                 logger.info(f"Sent message '{bot_message}' to user {khoj_user.id}, {khoj_user.phone_number}, from number {from_number} with Twilio message id {message.sid}")
+                asyncio.run(save_conversation(user, '', bot_message, user_message_type='system'))
+                time.sleep(0.5)
             except Exception as e:
                 logger.error(f"Failed to send message '{bot_message}' to user {khoj_user.id}, {khoj_user.phone_number} with error {e}")
             bar.update(1)
