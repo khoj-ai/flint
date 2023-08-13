@@ -70,9 +70,12 @@ def test_search_results(embeddings_manager):
         for embedding in embeddings:
             ConversationVectorFactory(conversation=conversation, vector=embedding.vector, compiled=embedding.compiled)
 
-    # Test that the embeddings manager generates embeddings
+    # Test that the embeddings generated are comprehensively searchable. I'm not able to test the actual search function because it needs to be async.
     conversations_to_search = user.conversations.all()
     formatted_query = f"query: What did we discuss about rainbows?"
     embedded_query = embeddings_manager.embeddings_model.embed_query(formatted_query)
-    sorted_vectors = ConversationVector.objects.filter(conversation__in=conversations_to_search).alias(distance=CosineDistance('vector', embedded_query)).order_by('distance').all()
-    assert sorted_vectors.count() > 0
+    sorted_vectors = ConversationVector.objects.filter(conversation__in=conversations_to_search).alias(distance=CosineDistance('vector', embedded_query)).filter(distance__lte=0.2).order_by('distance').all()
+    conversations = set([vector.conversation for vector in sorted_vectors])
+
+    assert sorted_vectors.count() == 2
+    assert len(conversations) == 1
