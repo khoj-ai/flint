@@ -42,7 +42,8 @@ dependencies = [
     "pgvector >= 0.2.1",
     "django-phonenumber-field == 7.1.0",
     "phonenumbers == 8.13.17",
-    "tiktoken >= 0.3.0"
+    "tiktoken >= 0.3.0",
+    "sentence-transformers == 2.2.2",
  ]
 dynamic = ["version"]
 

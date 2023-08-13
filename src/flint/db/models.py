@@ -9,6 +9,8 @@ from phonenumber_field.modelfields import PhoneNumberField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+from pgvector.django import VectorField
+
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -53,6 +55,19 @@ class Conversation(BaseModel):
 
     class Meta:
         db_table = "conversation"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.id})"
+    
+class ConversationVector(BaseModel):
+    id = models.BigAutoField(primary_key=True)
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, null=False, related_name="vectors")
+    compiled = models.TextField()
+    vector = VectorField(1024)
+
+    class Meta:
+        db_table = "conversation_vector"
         ordering = ["-created_at"]
 
     def __str__(self):

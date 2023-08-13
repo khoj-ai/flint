@@ -20,3 +20,14 @@ Today is {now} in UTC.
 """.strip(),
     input_variables=["now"],
 ).partial(now=get_date)
+
+previous_conversations_prompt = PromptTemplate.from_template(
+"""
+Here are some of our previous conversations that may be relevant:
+
+Notes:
+{conversation_history}
+
+Question: {query}
+""".strip()
+)
