@@ -36,6 +36,8 @@ twillio_client = Client(account_sid, auth_token)
 MAX_CHARACTERS_TWILIO = 1600
 MAX_CHARACTERS_PROMPT = 1000
 
+DEBUG = os.getenv("DEBUG", False)
+
 @api.get("/health")
 async def health() -> Response:
     return Response(status_code=200)
@@ -72,7 +74,7 @@ async def chat(
     asyncio.create_task(respond_to_user(Body, user, MediaUrl0, MediaContentType0, From, To))
 
 
-if os.getenv("DEBUG", False):
+if DEBUG:
     # Setup API Endpoints
     @api.post("/dev/chat")
     async def chat_dev(
@@ -100,6 +102,32 @@ if os.getenv("DEBUG", False):
         asyncio.create_task(save_conversation(user, Body, chat_response_text))
 
         return chat_response_text
+    
+    @api.post("/dev/search")
+    async def search_dev(
+        request: Request,
+        query: str,
+    ) -> Response:
+        # Get the user object
+        target_username = "+16304329912"
+        user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(username=target_username)
+        user_exists = await sync_to_async(user.exists)()
+        if user_exists:
+            user = await sync_to_async(user.get)()
+        else:
+            user = await sync_to_async(User.objects.create)(username=target_username)
+            await sync_to_async(user.save)()
+
+        relevant_previous_conversations = await embeddings_manager.search(query, user, debug=True)
+        relevant_previous_conversations = await sync_to_async(list)(relevant_previous_conversations.all())
+
+        conversation_history = ""
+        for c in relevant_previous_conversations:
+            conversation_history += f"Human: {c.user_message}\nKhoj:{c.bot_message}\n\n"
+
+        conversation_history = 'none' if conversation_history == '' else conversation_history
+
+        return Response(content=conversation_history, media_type="text/plain")
 
 
 async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0, From, To):
@@ -125,12 +153,16 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
     relevant_previous_conversations = await embeddings_manager.search(user_message, user)
     relevant_previous_conversations = await sync_to_async(list)(relevant_previous_conversations.all())
     for c in relevant_previous_conversations:
-        potential_message = f"Human: {c.user_message}\nKhoj:{c.bot_message}\n\n"
+        next_message = f"Human:{c.user_message}\nKhoj:{c.bot_message}\n\n"
         
-        if len(previous_conversations) + len(potential_message) > MAX_CHARACTERS_PROMPT:
-            break
+        if len(previous_conversations) + len(next_message) > MAX_CHARACTERS_PROMPT:
+            human_message = f"Human:{c.user_message}\n"
+            if len(previous_conversations) + len(human_message) > MAX_CHARACTERS_PROMPT:
+                break
+            else:
+                next_message = human_message
 
-        previous_conversations += f"Human: {c.user_message}\nKhoj:{c.bot_message}\n\n"
+        previous_conversations += next_message
     
     if previous_conversations != '':
         formatted_message = previous_conversations_prompt.format(query=user_message, conversation_history=previous_conversations)
