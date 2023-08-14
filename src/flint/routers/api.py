@@ -19,6 +19,7 @@ from flint.configure import configure_chat_prompt, save_conversation
 from flint.helpers import transcribe_audio_message
 from flint.prompt import previous_conversations_prompt
 from flint.state import embeddings_manager
+from flint.constants import KHOJ_INTRO_MESSAGE
 
 # Keep Django module import here to avoid import ordering errors
 from django.contrib.auth.models import User
@@ -63,15 +64,17 @@ async def chat(
     # Get the user object
     user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(khojuser__phone_number=From)
     user_exists = await sync_to_async(user.exists)()
+    intro_message = False
     if not user_exists:
         user_phone_number = From.split(":")[1]
         user = await sync_to_async(User.objects.create)(username=user_phone_number)
         user.khojuser.phone_number = user_phone_number
         await sync_to_async(user.save)()
+        intro_message = True
     else:
         user = await sync_to_async(user.get)()
 
-    asyncio.create_task(respond_to_user(Body, user, MediaUrl0, MediaContentType0, From, To))
+    asyncio.create_task(respond_to_user(Body, user, MediaUrl0, MediaContentType0, From, To, intro_message))
 
 
 if DEBUG:
@@ -130,7 +133,7 @@ if DEBUG:
         return Response(content=conversation_history, media_type="text/plain")
 
 
-async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0, From, To):
+async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0, From, To, intro_message=False):
     # Initialize user message to the body of the request
     uuid = user.khojuser.uuid
     user_message = message
@@ -177,5 +180,14 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
     chunks = [chat_response_text[i : i + MAX_CHARACTERS_TWILIO] for i in range(0, len(chat_response_text), MAX_CHARACTERS_TWILIO)]
     for chunk in chunks:
         message = twillio_client.messages.create(body=chunk, from_=To, to=From)
+
+    # Send Intro Message
+    if intro_message:
+        message = twillio_client.messages.create(
+            body=KHOJ_INTRO_MESSAGE,
+            from_=To,
+            to=From,
+        )
+        asyncio.create_task(save_conversation(user, '', KHOJ_INTRO_MESSAGE, 'system'))
 
     return message.sid
