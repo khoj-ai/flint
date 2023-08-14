@@ -2,8 +2,10 @@
 from dataclasses import dataclass
 from typing import List
 import logging
+from packaging import version
 
 # External Packages
+import torch
 from langchain.embeddings import HuggingFaceEmbeddings
 from pgvector.django import CosineDistance
 from asgiref.sync import sync_to_async
@@ -25,9 +27,21 @@ class EmbeddingsManager():
     def __init__(self):
         model_name = "intfloat/multilingual-e5-large"
         encode_kwargs = {'normalize_embeddings': True}
+
+        if torch.cuda.is_available():
+            # Use CUDA GPU
+            device = torch.device("cuda:0")
+        elif torch.backends.mps.is_available():
+            # Use Apple M1 Metal Acceleration
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
+
+        model_kwargs = {'device': device}
         self.embeddings_model = HuggingFaceEmbeddings(
             model_name=model_name,
-            encode_kwargs=encode_kwargs
+            encode_kwargs=encode_kwargs,
+            model_kwargs=model_kwargs
         )
         self.max_tokens = 512
 
