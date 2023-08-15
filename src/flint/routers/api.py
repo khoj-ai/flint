@@ -112,7 +112,7 @@ if DEBUG:
         query: str,
     ) -> Response:
         # Get the user object
-        target_username = "+16304329912"
+        target_username = "dev"
         user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(username=target_username)
         user_exists = await sync_to_async(user.exists)()
         if user_exists:
