@@ -1,12 +1,10 @@
 # Standard Packages
-from functools import partial
 from collections import defaultdict
 import logging
 
 # External Packages
 from fastapi import FastAPI
 from asgiref.sync import sync_to_async
-from langchain.chains import LLMChain
 from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
@@ -18,8 +16,8 @@ import requests
 import schedule
 
 # Internal Packages
-from flint.db.models import Conversation
-from flint.state import llm, telemetry
+from flint.db.models import Conversation, ConversationVector
+from flint.state import llm, telemetry, embeddings_manager
 from flint.constants import telemetry_server
 from flint.helpers import log_telemetry
 from flint.prompt import system_prompt
@@ -66,7 +64,22 @@ async def save_conversation(user, message, response, user_message_type="text"):
         api='chat_whatsapp',
         properties={"user_message_type": user_message_type}
     )
-    await sync_to_async(Conversation.objects.create)(user=user, user_message=message, bot_message=response)
+
+    conversation = await sync_to_async(Conversation.objects.create)(
+        user=user,
+        user_message=message,
+        bot_message=response,
+    )
+
+    full_document = f"{message} {response}"
+
+    for embedding in embeddings_manager.generate_embeddings(full_document):
+        await sync_to_async(ConversationVector.objects.create)(
+            conversation=conversation,
+            vector=embedding.vector,
+            compiled=embedding.compiled,
+        )
+        logger.info(f"💾 Saved conversation vector to the database")
 
 
 def configure_routes(app: FastAPI):
