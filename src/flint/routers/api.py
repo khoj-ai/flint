@@ -152,7 +152,7 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
     chat_history = state.conversation_sessions[uuid]
     previous_conversations = ''
 
-    formatted_message = user_message
+    formatted_history_message = ''
 
     relevant_previous_conversations = await embeddings_manager.search(user_message, user)
     relevant_previous_conversations = await sync_to_async(list)(relevant_previous_conversations.all())
@@ -169,10 +169,12 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
         previous_conversations += next_message
     
     if previous_conversations != '':
-        formatted_message = previous_conversations_prompt.format(query=user_message, conversation_history=previous_conversations)
+        formatted_history_message = previous_conversations_prompt.format(conversation_history=previous_conversations)
+        chat_history.chat_memory.add_ai_message(formatted_history_message)
+        asyncio.create_task(save_conversation(user, '', formatted_history_message, user_message_type))
 
     # Get Response from Agent
-    chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=chat_history)({"question": formatted_message})
+    chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=chat_history)({"question": user_message})
     chat_response_text = chat_response["text"]
 
     asyncio.create_task(save_conversation(user, user_message, chat_response_text, user_message_type))

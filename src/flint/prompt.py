@@ -23,11 +23,8 @@ Today is {now} in UTC.
 
 previous_conversations_prompt = PromptTemplate.from_template(
 """
-Here are some of our previous conversations that may be relevant:
+I found some of our previous conversations that may be relevant:
 
-Notes:
 {conversation_history}
-
-Question: {query}
 """.strip()
 )
