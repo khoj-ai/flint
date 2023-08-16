@@ -75,6 +75,7 @@ async def chat(
         user = await sync_to_async(user.get)()
 
     asyncio.create_task(respond_to_user(Body, user, MediaUrl0, MediaContentType0, From, To, intro_message))
+    return Response(status_code=200)
 
 
 if DEBUG:
