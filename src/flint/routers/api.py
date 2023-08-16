@@ -158,9 +158,9 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
     for c in relevant_previous_conversations:
         next_message = f"Human:{c.user_message}\nKhoj:{c.bot_message}\n\n"
         
-        if len(previous_conversations) + len(next_message) > MAX_CHARACTERS_PROMPT:
+        if len(previous_conversations) + len(next_message) + len(user_message) > MAX_CHARACTERS_PROMPT:
             human_message = f"Human:{c.user_message}\n"
-            if len(previous_conversations) + len(human_message) > MAX_CHARACTERS_PROMPT:
+            if len(previous_conversations) + len(human_message) + len(user_message) > MAX_CHARACTERS_PROMPT:
                 break
             else:
                 next_message = human_message
