@@ -4,6 +4,9 @@ FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 # Install python3.11
 RUN apt update && apt install -y python3.11
 
+# Install pip
+RUN apt -y install python3-pip
+
 # Set the working directory to /app
 WORKDIR /app
 
