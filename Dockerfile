@@ -21,4 +21,4 @@ RUN sed -i 's/dynamic = \["version"\]/version = "0.0.0"/' pyproject.toml && \
 EXPOSE 8488
 
 # Run src.flint.main.py when the container launches
-ENTRYPOINT ["python", "src/flint/main.py"]
+ENTRYPOINT ["python3", "src/flint/main.py"]
