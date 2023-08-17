@@ -1,5 +1,8 @@
-# Use the official Python image as the base image
-FROM python:3.11-slim-buster
+# Use Nvidia's latest Ubuntu 22.04 image as the base image
+FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
+
+# Install python3.11
+RUN apt update && apt install -y python3.11
 
 # Set the working directory to /app
 WORKDIR /app
@@ -13,13 +16,6 @@ RUN sed -i 's/dynamic = \["version"\]/version = "0.0.0"/' pyproject.toml && \
 
 # Make port 8488 available to the world outside this container
 EXPOSE 8488
-
-# Set environment variables
-# ARG POSTGRES_HOST
-# ENV POSTGRES_HOST=$POSTGRES_HOST
-
-# # Run migrations
-# RUN python src/flint/manage.py migrate
 
 # Run src.flint.main.py when the container launches
 ENTRYPOINT ["python", "src/flint/main.py"]
