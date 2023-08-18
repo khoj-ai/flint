@@ -9,7 +9,7 @@ from rich.logging import RichHandler
 import uvicorn
 from fastapi import Request
 import schedule
-
+from cloudwatch import cloudwatch
 
 # Internal Packages
 from flint.configure import configure_routes, initialize_conversation_sessions
@@ -56,10 +56,17 @@ def poll_task_scheduler():
 
 
 def run():
-    file_handler = logging.FileHandler("flint.log")
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-    logger.addHandler(file_handler)
+    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    cloudwatch_handler = cloudwatch.CloudwatchHandler(
+        access_id=AWS_ACCESS_KEY_ID,
+        access_key=AWS_SECRET_ACCESS_KEY,
+        log_group="flint",
+    )
+    cloudwatch_handler.setLevel(logging.INFO)
+    cloudwatch_handler.setFormatter(formatter)
+    logger.addHandler(cloudwatch_handler)
 
     try:
         state.conversation_sessions = initialize_conversation_sessions()
