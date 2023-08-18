@@ -63,6 +63,7 @@ def run():
         access_id=AWS_ACCESS_KEY_ID,
         access_key=AWS_SECRET_ACCESS_KEY,
         log_group="flint",
+        region="us-east-1",
     )
     cloudwatch_handler.setLevel(logging.INFO)
     cloudwatch_handler.setFormatter(formatter)
