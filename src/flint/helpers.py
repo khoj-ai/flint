@@ -3,23 +3,28 @@ from datetime import datetime
 from logging import Logger
 import os
 import time
-import openai
-import requests
 import urllib.request
 
+# External Packages
+import openai
+import tiktoken
+import requests
+from langchain.memory import ConversationBufferMemory
+
 # Internal Packages
-from flint.state import telemetry
+from flint.state import telemetry, llm
+from flint.constants import MAX_TOKEN_LIMIT_PROMPT
 
 
 def get_date():
-    return datetime.utcnow().strftime('%Y-%m-%d %A')
+    return datetime.utcnow().strftime("%Y-%m-%d %A")
 
 
 def log_telemetry(
-        telemetry_type: str,
-        user_guid: str,
-        api: str,
-        properties: dict = None,
+    telemetry_type: str,
+    user_guid: str,
+    api: str,
+    properties: dict = None,
 ):
     row = {
         "api": api,
@@ -67,3 +72,58 @@ def transcribe_audio_message(audio_url: str, uuid: str, logger: Logger) -> str:
         os.remove(audio_message_file)
 
     return user_message
+
+
+def get_num_tokens(message: str, model_name: str) -> int:
+    encoder = tiktoken.encoding_for_model(model_name)
+    num_tokens = len(encoder.encode(message))
+    return num_tokens
+
+
+def prepare_prompt(chat_history: ConversationBufferMemory, relevant_previous_conversations, user_message, model_name):
+    from flint.prompt import previous_conversations_prompt, CONVERSATION_HISTORY_PROMPT
+
+    # Count the number of tokens in the user message
+    user_message_tokens = get_num_tokens(user_message, model_name)
+    if user_message_tokens > MAX_TOKEN_LIMIT_PROMPT:
+        raise ValueError(f"User message exceeds token limit of {MAX_TOKEN_LIMIT_PROMPT} tokens")
+
+    tokens_remaining = MAX_TOKEN_LIMIT_PROMPT - user_message_tokens
+    previous_conversations = ""
+
+    for c in relevant_previous_conversations:
+        next_message = f"Human:{c.user_message}\nKhoj:{c.bot_message}\n\n"
+        next_message_num_tokens = get_num_tokens(next_message, model_name)
+
+        if tokens_remaining - next_message_num_tokens < 0:
+            human_message = f"Human:{c.user_message}\n"
+            if tokens_remaining - get_num_tokens(human_message, model_name) < 0:
+                break
+            else:
+                next_message = human_message
+                next_message_num_tokens = get_num_tokens(next_message, model_name)
+
+        previous_conversations += next_message
+        tokens_remaining -= next_message_num_tokens
+
+    formatted_history_message = None
+    if previous_conversations != "":
+        formatted_history_message = previous_conversations_prompt.format(
+            conversation_history=previous_conversations, conversation_history_prompt=CONVERSATION_HISTORY_PROMPT
+        )
+        chat_history.chat_memory.add_ai_message(formatted_history_message)
+
+    adjusted_memory_buffer = []
+    # Messages are stored in order of oldest to newest, so we need to reverse the list to give newer messages priority
+    current_memory = chat_history.chat_memory.messages[::-1]
+    for m in current_memory:
+        content_tokens = get_num_tokens(m.content, model_name)
+        if tokens_remaining - content_tokens < 0:
+            break
+        else:
+            adjusted_memory_buffer.append(m)
+            tokens_remaining -= content_tokens
+
+    chat_history.chat_memory.messages = adjusted_memory_buffer[::-1]
+
+    return user_message, formatted_history_message, chat_history

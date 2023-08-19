@@ -26,8 +26,10 @@ logger = logging.getLogger()
 # Initialize the Application Server
 if os.getenv("DEBUG", False):
     app = FastAPI()
+    log_group = "flint-dev"
 else:
     app = FastAPI(docs_url=None, redoc_url=None)
+    log_group = "flint"
 
 
 @app.middleware("http")
@@ -62,7 +64,7 @@ def run():
     cloudwatch_handler = cloudwatch.CloudwatchHandler(
         access_id=AWS_ACCESS_KEY_ID,
         access_key=AWS_SECRET_ACCESS_KEY,
-        log_group="flint",
+        log_group=log_group,
         region="us-east-1",
     )
     cloudwatch_handler.setLevel(logging.INFO)
@@ -72,7 +74,10 @@ def run():
     try:
         state.conversation_sessions = initialize_conversation_sessions()
     except Exception as e:
-        logger.error(f"Failed to initialize conversation sessions: {e}. You may need to run python src/flint/manage.py migrate", exc_info=True)
+        logger.error(
+            f"Failed to initialize conversation sessions: {e}. You may need to run python src/flint/manage.py migrate",
+            exc_info=True,
+        )
     configure_routes(app)
     poll_task_scheduler()
     start_server(app)
