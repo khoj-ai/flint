@@ -108,6 +108,8 @@ def prepare_prompt(
         else:
             next_message = f"{message_date_utc}\nHuman:{c.user_message}\nKhoj:{c.bot_message}\n"
 
+        next_message_num_tokens = get_num_tokens(next_message, model_name)
+
         # If the next message exceeds the token limit, try to see if we can include just the human message. If not, break.
         if tokens_remaining - next_message_num_tokens < 0 and len(c.user_message) > 0:
             human_message = f"{message_date_utc}\nHuman:{c.user_message}\n"
