@@ -12,7 +12,8 @@ import requests
 from langchain.memory import ConversationBufferMemory
 
 # Internal Packages
-from flint.state import telemetry, llm
+from flint.state import telemetry
+from flint.db.models import Conversation
 from flint.constants import MAX_TOKEN_LIMIT_PROMPT
 
 
@@ -80,7 +81,12 @@ def get_num_tokens(message: str, model_name: str) -> int:
     return num_tokens
 
 
-def prepare_prompt(chat_history: ConversationBufferMemory, relevant_previous_conversations, user_message, model_name):
+def prepare_prompt(
+    chat_history: ConversationBufferMemory,
+    relevant_previous_conversations: list[Conversation],
+    user_message,
+    model_name,
+):
     from flint.prompt import previous_conversations_prompt, CONVERSATION_HISTORY_PROMPT
 
     # Count the number of tokens in the user message
@@ -92,11 +98,15 @@ def prepare_prompt(chat_history: ConversationBufferMemory, relevant_previous_con
     previous_conversations = ""
 
     for c in relevant_previous_conversations:
-        next_message = f"Human:{c.user_message}\nKhoj:{c.bot_message}\n\n"
+        message_date_utc = c.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        if len(c.user_message) == 0:
+            next_message = f"{message_date_utc}\nKhoj:{c.bot_message}\n"
+        else:
+            next_message = f"{message_date_utc}\nHuman:{c.user_message}\nKhoj:{c.bot_message}\n"
         next_message_num_tokens = get_num_tokens(next_message, model_name)
 
         if tokens_remaining - next_message_num_tokens < 0:
-            human_message = f"Human:{c.user_message}\n"
+            human_message = f"{message_date_utc}\nHuman:{c.user_message}\n"
             if tokens_remaining - get_num_tokens(human_message, model_name) < 0:
                 break
             else:
