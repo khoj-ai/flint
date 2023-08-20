@@ -187,7 +187,9 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
             from_=To,
             to=From,
         )
-        asyncio.create_task(save_conversation(user, "", KHOJ_PROMPT_EXCEEDED_MESSAGE, "system"))
+        asyncio.create_task(
+            save_conversation(user=user, message="", response=KHOJ_PROMPT_EXCEEDED_MESSAGE, user_message_type="system")
+        )
         return
     except Exception as e:
         logger.error(f"Failed to prepare prompt: {e}", exc_info=True)
@@ -202,7 +204,11 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
     )
     chat_response_text = chat_response["text"]
 
-    asyncio.create_task(save_conversation(user, user_message, chat_response_text, user_message_type))
+    asyncio.create_task(
+        save_conversation(
+            user=user, message=user_message, response=chat_response_text, user_message_type=user_message_type
+        )
+    )
 
     # Split response into 1600 character chunks
     chunks = [
@@ -219,6 +225,8 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
             from_=To,
             to=From,
         )
-        asyncio.create_task(save_conversation(user, "", KHOJ_INTRO_MESSAGE, "system"))
+        asyncio.create_task(
+            save_conversation(user=user, message="", response=KHOJ_INTRO_MESSAGE, user_message_type="system")
+        )
 
     return message.sid
