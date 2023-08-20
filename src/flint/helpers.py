@@ -87,6 +87,10 @@ def prepare_prompt(
     user_message,
     model_name,
 ):
+    """
+    Prepare the prompt for the LLM by adding the most recent query, preparing relevant messages from the conversation history, and including the most recent messages from the chat memory.
+    That also denotes the order of priority, when preparing the prompt with respect to the token limit.
+    """
     from flint.prompt import previous_conversations_prompt, CONVERSATION_HISTORY_PROMPT
 
     # Count the number of tokens in the user message
@@ -103,15 +107,16 @@ def prepare_prompt(
             next_message = f"{message_date_utc}\nKhoj:{c.bot_message}\n"
         else:
             next_message = f"{message_date_utc}\nHuman:{c.user_message}\nKhoj:{c.bot_message}\n"
-        next_message_num_tokens = get_num_tokens(next_message, model_name)
 
-        if tokens_remaining - next_message_num_tokens < 0:
+        # If the next message exceeds the token limit, try to see if we can include just the human message. If not, break.
+        if tokens_remaining - next_message_num_tokens < 0 and len(c.user_message) > 0:
             human_message = f"{message_date_utc}\nHuman:{c.user_message}\n"
             if tokens_remaining - get_num_tokens(human_message, model_name) < 0:
                 break
             else:
                 next_message = human_message
-                next_message_num_tokens = get_num_tokens(next_message, model_name)
+
+        next_message_num_tokens = get_num_tokens(next_message, model_name)
 
         previous_conversations += next_message
         tokens_remaining -= next_message_num_tokens
