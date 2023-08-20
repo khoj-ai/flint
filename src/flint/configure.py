@@ -10,7 +10,7 @@ from langchain.prompts import (
     MessagesPlaceholder,
     HumanMessagePromptTemplate,
 )
-from langchain.memory import ConversationTokenBufferMemory
+from langchain.memory import ConversationBufferMemory
 from langchain.schema import SystemMessage
 import requests
 import schedule
@@ -34,35 +34,40 @@ def configure_chat_prompt():
         messages=[
             SystemMessage(content=system_prompt.format()),
             MessagesPlaceholder(variable_name="chat_history"),
-            HumanMessagePromptTemplate.from_template("{question}")
+            HumanMessagePromptTemplate.from_template("{question}"),
         ]
     )
 
 
-def initialize_conversation_sessions() -> defaultdict[str, ConversationTokenBufferMemory]:
+def initialize_conversation_sessions() -> defaultdict[str, ConversationBufferMemory]:
     "Initialize the Conversation Sessions"
     logger.info("Initializing Conversation Sessions")
-    conversation_sessions = defaultdict(lambda: ConversationTokenBufferMemory(memory_key="chat_history", return_messages=True, max_token_limit=3996, llm=llm))
+    conversation_sessions = defaultdict(
+        lambda: ConversationBufferMemory(memory_key="chat_history", return_messages=True, llm=llm)
+    )
     users = User.objects.all()
     for user in users:
         conversations = Conversation.objects.filter(user=user)[:10]
         conversations = conversations[::-1]
         # Reconstruct the conversation sessions from the database
         for conversation in conversations:
-            conversation_sessions[conversation.user.khojuser.uuid].chat_memory.add_user_message(conversation.user_message)
+            conversation_sessions[conversation.user.khojuser.uuid].chat_memory.add_user_message(
+                conversation.user_message
+            )
             conversation_sessions[conversation.user.khojuser.uuid].chat_memory.add_ai_message(conversation.bot_message)
 
     return conversation_sessions
-    
+
+
 async def save_conversation(user, message, response, user_message_type="text"):
     "Save the conversation to the database"
     logger.info(f"💾 Saving conversation to the database and logging telemetry")
 
     log_telemetry(
-        telemetry_type='api',
+        telemetry_type="api",
         user_guid=str(user.khojuser.uuid),
-        api='chat_whatsapp',
-        properties={"user_message_type": user_message_type}
+        api="chat_whatsapp",
+        properties={"user_message_type": user_message_type},
     )
 
     conversation = await sync_to_async(Conversation.objects.create)(
@@ -89,12 +94,13 @@ def configure_routes(app: FastAPI):
 
     app.include_router(api, prefix="/api")
 
+
 @schedule.repeat(schedule.every(11).minutes)
 def upload_telemetry():
     if len(telemetry) == 0:
         logger.debug("No telemetry to upload")
         return
-    
+
     try:
         logger.debug(f"📡 Upload usage telemetry to {telemetry_server}")
         response = requests.post(telemetry_server, json=telemetry)

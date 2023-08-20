@@ -16,10 +16,9 @@ from twilio.rest import Client
 # Internal Packages
 from flint import state
 from flint.configure import configure_chat_prompt, save_conversation
-from flint.helpers import transcribe_audio_message
-from flint.prompt import previous_conversations_prompt
+from flint.helpers import transcribe_audio_message, prepare_prompt
 from flint.state import embeddings_manager
-from flint.constants import KHOJ_INTRO_MESSAGE
+from flint.constants import KHOJ_INTRO_MESSAGE, KHOJ_PROMPT_EXCEEDED_MESSAGE
 
 # Keep Django module import here to avoid import ordering errors
 from django.contrib.auth.models import User
@@ -39,9 +38,11 @@ MAX_CHARACTERS_PROMPT = 1000
 
 DEBUG = os.getenv("DEBUG", False)
 
+
 @api.get("/health")
 async def health() -> Response:
     return Response(status_code=200)
+
 
 # Setup API Endpoints
 @api.post("/chat")
@@ -99,14 +100,32 @@ if DEBUG:
         # Get Conversation History
         chat_history = state.conversation_sessions[uuid]
 
+        relevant_previous_conversations = await embeddings_manager.search(Body, user)
+        relevant_previous_conversations = await sync_to_async(list)(relevant_previous_conversations.all())
+
+        try:
+            user_message, formatted_history_message, adjusted_memory_buffer = prepare_prompt(
+                chat_history=chat_history,
+                relevant_previous_conversations=relevant_previous_conversations,
+                user_message=Body,
+                model_name=state.MODEL_NAME,
+            )
+        except ValueError as e:
+            logger.error(f"Prompt exceeded maximum length: {e}", exc_info=True)
+
+        if formatted_history_message != None:
+            asyncio.create_task(save_conversation(user, "", formatted_history_message, "text"))
+
         # Get Response from Agent
-        chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=chat_history)({"question": Body})
+        chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=adjusted_memory_buffer)(
+            {"question": user_message}
+        )
         chat_response_text = chat_response["text"]
 
-        asyncio.create_task(save_conversation(user, Body, chat_response_text))
+        asyncio.create_task(save_conversation(user, user_message, chat_response_text, "text"))
 
         return chat_response_text
-    
+
     @api.post("/dev/search")
     async def search_dev(
         request: Request,
@@ -129,7 +148,7 @@ if DEBUG:
         for c in relevant_previous_conversations:
             conversation_history += f"Human: {c.user_message}\nKhoj:{c.bot_message}\n\n"
 
-        conversation_history = 'none' if conversation_history == '' else conversation_history
+        conversation_history = "none" if conversation_history == "" else conversation_history
 
         return Response(content=conversation_history, media_type="text/plain")
 
@@ -150,37 +169,52 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
 
     # Get Conversation History
     chat_history = state.conversation_sessions[uuid]
-    previous_conversations = ''
-
-    formatted_history_message = ''
 
     relevant_previous_conversations = await embeddings_manager.search(user_message, user)
     relevant_previous_conversations = await sync_to_async(list)(relevant_previous_conversations.all())
-    for c in relevant_previous_conversations:
-        next_message = f"Human:{c.user_message}\nKhoj:{c.bot_message}\n\n"
-        
-        if len(previous_conversations) + len(next_message) + len(user_message) > MAX_CHARACTERS_PROMPT:
-            human_message = f"Human:{c.user_message}\n"
-            if len(previous_conversations) + len(human_message) + len(user_message) > MAX_CHARACTERS_PROMPT:
-                break
-            else:
-                next_message = human_message
 
-        previous_conversations += next_message
-    
-    if previous_conversations != '':
-        formatted_history_message = previous_conversations_prompt.format(conversation_history=previous_conversations)
-        chat_history.chat_memory.add_ai_message(formatted_history_message)
-        asyncio.create_task(save_conversation(user, '', formatted_history_message, user_message_type))
+    try:
+        user_message, formatted_history_message, adjusted_memory_buffer = prepare_prompt(
+            chat_history=chat_history,
+            relevant_previous_conversations=relevant_previous_conversations,
+            user_message=user_message,
+            model_name=state.MODEL_NAME,
+        )
+    except ValueError as e:
+        logger.error(f"Prompt exceeded maximum length: {e}", exc_info=True)
+        message = twillio_client.messages.create(
+            body=KHOJ_PROMPT_EXCEEDED_MESSAGE,
+            from_=To,
+            to=From,
+        )
+        asyncio.create_task(
+            save_conversation(user=user, message="", response=KHOJ_PROMPT_EXCEEDED_MESSAGE, user_message_type="system")
+        )
+        return
+    except Exception as e:
+        logger.error(f"Failed to prepare prompt: {e}", exc_info=True)
+        return
+
+    if formatted_history_message != None:
+        asyncio.create_task(save_conversation(user, "", formatted_history_message, user_message_type))
 
     # Get Response from Agent
-    chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=chat_history)({"question": user_message})
+    chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=adjusted_memory_buffer)(
+        {"question": user_message}
+    )
     chat_response_text = chat_response["text"]
 
-    asyncio.create_task(save_conversation(user, user_message, chat_response_text, user_message_type))
+    asyncio.create_task(
+        save_conversation(
+            user=user, message=user_message, response=chat_response_text, user_message_type=user_message_type
+        )
+    )
 
     # Split response into 1600 character chunks
-    chunks = [chat_response_text[i : i + MAX_CHARACTERS_TWILIO] for i in range(0, len(chat_response_text), MAX_CHARACTERS_TWILIO)]
+    chunks = [
+        chat_response_text[i : i + MAX_CHARACTERS_TWILIO]
+        for i in range(0, len(chat_response_text), MAX_CHARACTERS_TWILIO)
+    ]
     for chunk in chunks:
         message = twillio_client.messages.create(body=chunk, from_=To, to=From)
 
@@ -191,6 +225,8 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
             from_=To,
             to=From,
         )
-        asyncio.create_task(save_conversation(user, '', KHOJ_INTRO_MESSAGE, 'system'))
+        asyncio.create_task(
+            save_conversation(user=user, message="", response=KHOJ_INTRO_MESSAGE, user_message_type="system")
+        )
 
     return message.sid
