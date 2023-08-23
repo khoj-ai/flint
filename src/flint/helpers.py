@@ -66,8 +66,8 @@ def transcribe_audio_message(audio_url: str, uuid: str, logger: Logger) -> str:
             # Call the OpenAI API to transcribe the audio using Whisper API
             transcribed = openai.Audio.translate(model="whisper-1", file=audio_file)
             user_message = transcribed.get("text")
-    except:
-        logger.error(f"Failed to transcribe audio by {uuid}")
+    except Exception as e:
+        logger.error(f"Failed to transcribe audio by {uuid} with error {e}", exc_info=True)
         return None
     finally:
         # Delete the audio MP3 file
