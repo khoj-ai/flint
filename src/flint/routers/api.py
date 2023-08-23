@@ -18,7 +18,7 @@ from flint import state
 from flint.configure import configure_chat_prompt, save_conversation
 from flint.helpers import transcribe_audio_message, prepare_prompt
 from flint.state import embeddings_manager
-from flint.constants import KHOJ_INTRO_MESSAGE, KHOJ_PROMPT_EXCEEDED_MESSAGE
+from flint.constants import KHOJ_INTRO_MESSAGE, KHOJ_PROMPT_EXCEEDED_MESSAGE, KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE
 
 # Keep Django module import here to avoid import ordering errors
 from django.contrib.auth.models import User
@@ -166,6 +166,15 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
         user_message_type = "voice_message"
         logger.info(f"Received audio message from {From} with url {audio_url} and type {audio_type}")
         user_message = transcribe_audio_message(audio_url, uuid, logger)
+        if user_message is None:
+            logger.error(f"Failed to transcribe audio by {uuid}")
+            message = twillio_client.messages.create(body=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, from_=To, to=From)
+            asyncio.create_task(
+                save_conversation(
+                    user=user, message="", response=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, user_message_type="system"
+                )
+            )
+            return message.sid
 
     # Get Conversation History
     chat_history = state.conversation_sessions[uuid]
@@ -190,7 +199,7 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
         asyncio.create_task(
             save_conversation(user=user, message="", response=KHOJ_PROMPT_EXCEEDED_MESSAGE, user_message_type="system")
         )
-        return
+        return message.sid
     except Exception as e:
         logger.error(f"Failed to prepare prompt: {e}", exc_info=True)
         return

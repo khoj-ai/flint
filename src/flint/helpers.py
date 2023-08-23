@@ -68,6 +68,7 @@ def transcribe_audio_message(audio_url: str, uuid: str, logger: Logger) -> str:
             user_message = transcribed.get("text")
     except:
         logger.error(f"Failed to transcribe audio by {uuid}")
+        return None
     finally:
         # Delete the audio MP3 file
         os.remove(audio_message_file)
