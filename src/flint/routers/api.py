@@ -18,7 +18,7 @@ from flint import state
 from flint.configure import configure_chat_prompt, save_conversation
 from flint.helpers import transcribe_audio_message, prepare_prompt
 from flint.state import embeddings_manager
-from flint.constants import KHOJ_INTRO_MESSAGE, KHOJ_PROMPT_EXCEEDED_MESSAGE, KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE
+from flint.constants import KHOJ_INTRO_MESSAGE, KHOJ_PROMPT_EXCEEDED_MESSAGE, KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE
 
 # Keep Django module import here to avoid import ordering errors
 from django.contrib.auth.models import User
@@ -159,19 +159,31 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
     user_message = message
     user_message_type = "text"
 
-    # Check if message is an audio message
-    if MediaUrl0 is not None and MediaContentType0 is not None and MediaContentType0.startswith("audio/"):
-        audio_url = MediaUrl0
-        audio_type = MediaContentType0.split("/")[1]
-        user_message_type = "voice_message"
-        logger.info(f"Received audio message from {From} with url {audio_url} and type {audio_type}")
-        user_message = transcribe_audio_message(audio_url, uuid, logger)
-        if user_message is None:
-            logger.error(f"Failed to transcribe audio by {uuid}")
-            message = twillio_client.messages.create(body=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, from_=To, to=From)
+    if MediaUrl0 is not None and MediaContentType0 is not None:
+        # Check if message is an audio message
+        if MediaContentType0.startswith("audio/"):
+            audio_url = MediaUrl0
+            audio_type = MediaContentType0.split("/")[1]
+            user_message_type = "voice_message"
+            logger.info(f"Received audio message from {uuid} with url {audio_url} and type {audio_type}")
+            user_message = transcribe_audio_message(audio_url, uuid, logger)
+            if user_message is None:
+                logger.error(f"Failed to transcribe audio by {uuid}")
+                message = twillio_client.messages.create(body=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, from_=To, to=From)
+                asyncio.create_task(
+                    save_conversation(
+                        user=user, message="", response=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, user_message_type="system"
+                    )
+                )
+                return message.sid
+        else:
+            logger.error(f"Received media of unsupported type {MediaContentType0} from {uuid}")
+            message = twillio_client.messages.create(
+                body=KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE, from_=To, to=From
+            )
             asyncio.create_task(
                 save_conversation(
-                    user=user, message="", response=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, user_message_type="system"
+                    user=user, message="", response=KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE, user_message_type="system"
                 )
             )
             return message.sid

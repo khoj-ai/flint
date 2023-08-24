@@ -19,3 +19,6 @@ MAX_TOKEN_LIMIT_PROMPT = 12000
 KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE = f"""
 Sorry, I wasn't able to understand your voice message this time. Could you please try typing out your message? If you'd like to help me improve, email my creators at team@khoj.dev.
 """.strip()
+KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE = f"""
+Sorry, I'm still learning and can only understand text or voice message right now. Maybe share the content as a text message with me? Or if you really need this feature, email my creators at team@khoj.dev.
+""".strip()
