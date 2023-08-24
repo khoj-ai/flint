@@ -64,6 +64,7 @@ async def chat(
 
     # Return OK if empty message is received. This is usually a message reaction
     if Body is None and MediaUrl0 is None:
+        logger.warning("Received empty message. This could be a simple message reaction.")
         return Response(status_code=200)
 
     # Get the user object
@@ -181,7 +182,7 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
                 )
                 return message.sid
         else:
-            logger.error(f"Received media of unsupported type {MediaContentType0} from {uuid}")
+            logger.warning(f"Received media of unsupported type {MediaContentType0} from {uuid}")
             message = twillio_client.messages.create(
                 body=KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE, from_=To, to=From
             )
