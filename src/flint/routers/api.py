@@ -62,6 +62,10 @@ async def chat(
         logger.error("Error in Twilio Signature")
         raise HTTPException(status_code=401, detail="Unauthorized signature")
 
+    # Return OK if empty message is received. This is usually a message reaction
+    if Body is None and MediaUrl0 is None:
+        return Response(status_code=200)
+
     # Get the user object
     user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(khojuser__phone_number=From)
     user_exists = await sync_to_async(user.exists)()
