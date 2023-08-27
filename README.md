@@ -43,10 +43,26 @@ You can get setup with your own instance of Khoj via WhatsApp in a few simple st
 
 ### Start the service
 
+#### Docker setup
+
 1. Fill in the relevant environment variables in the `docker-compose.yml` file under the `app` service.
 2. Start the service.
 ```bash
 $ docker-compose up
+```
+
+##### Run migrations
+
+In order to setup the database, you need to run the migrations. This needs to be done before you can start using the service, and anytime a new migration is added.
+
+1. SSH into the docker container. You can get the name of the container by running `docker container ls`.
+```bash
+$ docker exec -it khoj_app_1 bash
+```
+
+2. Run the migrations.
+```bash
+$ python3 src/flint/manage.py migrate
 ```
 
 #### Test that it's working
