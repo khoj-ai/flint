@@ -1,5 +1,5 @@
-# Use Nvidia's latest Ubuntu 22.04 image as the base image
-FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
+# Use the official Python image as the base image
+FROM python:3.11-slim-buster
 
 # Install python3.11
 RUN apt update && apt install -y python3.11
