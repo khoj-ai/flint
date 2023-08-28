@@ -12,9 +12,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
   app:
-    build: 
+    build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: dev.Dockerfile
     ports:
       - "8488:8488"
     environment:
