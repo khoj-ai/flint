@@ -26,7 +26,8 @@ services:
     depends_on:
       - database
     volumes:
-      - .:/app
+      - flint_models:/root/.cache/torch/sentence_transformers
 
 volumes:
   postgres_data:
+  flint_models:
