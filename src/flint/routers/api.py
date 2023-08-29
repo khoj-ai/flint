@@ -18,7 +18,12 @@ from flint import state
 from flint.configure import configure_chat_prompt, save_conversation
 from flint.helpers import transcribe_audio_message, prepare_prompt
 from flint.state import embeddings_manager
-from flint.constants import KHOJ_INTRO_MESSAGE, KHOJ_PROMPT_EXCEEDED_MESSAGE, KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE
+from flint.constants import (
+    KHOJ_INTRO_MESSAGE,
+    KHOJ_PROMPT_EXCEEDED_MESSAGE,
+    KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE,
+    KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE,
+)
 
 # Keep Django module import here to avoid import ordering errors
 from django.contrib.auth.models import User
@@ -174,18 +179,21 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
             user_message = transcribe_audio_message(audio_url, uuid, logger)
             if user_message is None:
                 logger.error(f"Failed to transcribe audio by {uuid}")
-                message = twillio_client.messages.create(body=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, from_=To, to=From)
+                message = twillio_client.messages.create(
+                    body=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, from_=To, to=From
+                )
                 asyncio.create_task(
                     save_conversation(
-                        user=user, message="", response=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, user_message_type="system"
+                        user=user,
+                        message="",
+                        response=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE,
+                        user_message_type="system",
                     )
                 )
                 return message.sid
         else:
             logger.warning(f"Received media of unsupported type {MediaContentType0} from {uuid}")
-            message = twillio_client.messages.create(
-                body=KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE, from_=To, to=From
-            )
+            message = twillio_client.messages.create(body=KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE, from_=To, to=From)
             asyncio.create_task(
                 save_conversation(
                     user=user, message="", response=KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE, user_message_type="system"
@@ -194,12 +202,17 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
             return message.sid
 
     # Get Conversation History
+    logger.info(f"Retrieving conversation history for {uuid}")
     chat_history = state.conversation_sessions[uuid]
 
+    logger.info(f"Searching for relevant previous conversations for {uuid}")
     relevant_previous_conversations = await embeddings_manager.search(user_message, user)
+
+    logger.info(f"Retrieved relevant previous conversations for {uuid}")
     relevant_previous_conversations = await sync_to_async(list)(relevant_previous_conversations.all())
 
     try:
+        logger.info(f"Preparing prompt for {uuid}")
         user_message, formatted_history_message, adjusted_memory_buffer = prepare_prompt(
             chat_history=chat_history,
             relevant_previous_conversations=relevant_previous_conversations,
@@ -225,6 +238,7 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
         asyncio.create_task(save_conversation(user, "", formatted_history_message, user_message_type))
 
     # Get Response from Agent
+    logger.info(f"Sending prompt to LLM for user {uuid}")
     chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=adjusted_memory_buffer)(
         {"question": user_message}
     )

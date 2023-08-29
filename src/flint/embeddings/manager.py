@@ -55,7 +55,10 @@ class EmbeddingsManager:
     async def search(self, query: str, user: User, top_n: int = 3, debug: bool = False):
         conversations_to_search = user.conversations.all()
         formatted_query = f"query: {query}"
+        logger.info("Embedding query")
         embedded_query = self.embeddings_model.embed_query(formatted_query)
+
+        logger.info(f"Searching for query against previous conversations")
         sorted_vectors = (
             ConversationVector.objects.filter(conversation__in=conversations_to_search)
             .alias(distance=CosineDistance("vector", embedded_query))
@@ -65,6 +68,8 @@ class EmbeddingsManager:
 
         if not sync_to_async(sorted_vectors.exists)():
             return Conversation.objects.none()
+
+        logger.info(f"Retrieved conversations")
 
         if debug:
             annotated_result = (
