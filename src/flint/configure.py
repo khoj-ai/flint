@@ -61,7 +61,6 @@ def initialize_conversation_sessions() -> defaultdict[str, ConversationBufferMem
 
 async def save_conversation(user, message, response, user_message_type="text"):
     "Save the conversation to the database"
-    logger.info(f"💾 Saving conversation to the database and logging telemetry")
 
     log_telemetry(
         telemetry_type="api",
@@ -78,13 +77,20 @@ async def save_conversation(user, message, response, user_message_type="text"):
 
     full_document = f"{message} {response}"
 
-    for embedding in embeddings_manager.generate_embeddings(full_document):
-        await sync_to_async(ConversationVector.objects.create)(
-            conversation=conversation,
-            vector=embedding.vector,
-            compiled=embedding.compiled,
-        )
-        logger.info(f"💾 Saved conversation vector to the database")
+    embeddings = [embedding for embedding in embeddings_manager.generate_embeddings(full_document)]
+
+    await sync_to_async(ConversationVector.objects.bulk_create)(
+        [
+            ConversationVector(
+                conversation=conversation,
+                vector=embedding.vector,
+                compiled=embedding.compiled,
+            )
+            for embedding in embeddings
+        ]
+    )
+
+    logger.info(f"💾 Saved conversation vector to the database for user {user.id}")
 
 
 def configure_routes(app: FastAPI):
