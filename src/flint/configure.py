@@ -1,6 +1,7 @@
 # Standard Packages
 from collections import defaultdict
 import logging
+from datetime import timedelta, datetime
 
 # External Packages
 from fastapi import FastAPI
@@ -45,7 +46,10 @@ def initialize_conversation_sessions() -> defaultdict[str, ConversationBufferMem
     conversation_sessions = defaultdict(
         lambda: ConversationBufferMemory(memory_key="chat_history", return_messages=True, llm=llm)
     )
-    users = User.objects.all()
+    # Get Conversations from the database within the last 24 hours
+    conversations = Conversation.objects.filter(created_at__gte=datetime.now() - timedelta(hours=24))
+    users = User.objects.filter(conversations__in=conversations).distinct()
+
     for user in users:
         conversations = Conversation.objects.filter(user=user)[:10]
         conversations = conversations[::-1]
@@ -57,6 +61,21 @@ def initialize_conversation_sessions() -> defaultdict[str, ConversationBufferMem
             conversation_sessions[conversation.user.khojuser.uuid].chat_memory.add_ai_message(conversation.bot_message)
 
     return conversation_sessions
+
+
+async def get_recent_conversations(user: User, uuid: str) -> ConversationBufferMemory:
+    "Get the recent conversations for the user and construct a new ConversationBufferMemory object"
+    conversation_buffer_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True, llm=llm)
+    conversations = Conversation.objects.filter(user=user)[:10]
+    conversations = await sync_to_async(list)(conversations.all())
+    # Reconstruct the conversation sessions from the database
+    for conversation in conversations[::-1]:
+        if len(conversation.user_message) > 0:
+            conversation_buffer_memory.chat_memory.add_user_message(conversation.user_message)
+        if len(conversation.bot_message) > 0:
+            conversation_buffer_memory.chat_memory.add_ai_message(conversation.bot_message)
+
+    return conversation_buffer_memory
 
 
 async def save_conversation(user, message, response, user_message_type="text"):
