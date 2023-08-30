@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from typing import List
 import logging
-from packaging import version
+from datetime import time, datetime
 
 # External Packages
 import torch
@@ -53,6 +53,7 @@ class EmbeddingsManager:
             yield Embedding(chunk, embeddings[0])
 
     async def search(self, query: str, user: User, top_n: int = 3, debug: bool = False):
+        start_time = datetime.now()
         conversations_to_search = user.conversations.all()
         formatted_query = f"query: {query}"
         logger.info("Embedding query")
@@ -66,7 +67,7 @@ class EmbeddingsManager:
             .order_by("distance")[:top_n]
         )
 
-        if not sync_to_async(sorted_vectors.exists)():
+        if not await sync_to_async(sorted_vectors.exists)():
             return Conversation.objects.none()
 
         logger.info(f"Retrieved conversations")
@@ -84,4 +85,5 @@ class EmbeddingsManager:
                 logger.debug(f"Distance: {vector.distance}")
 
         n_matching_conversations = sorted_vectors.values_list("conversation", flat=True)
+        logger.info(f"Searching for top {top_n} conversations took {datetime.now() - start_time}")
         return Conversation.objects.filter(id__in=n_matching_conversations).distinct()

@@ -15,7 +15,7 @@ from twilio.rest import Client
 
 # Internal Packages
 from flint import state
-from flint.configure import configure_chat_prompt, save_conversation
+from flint.configure import configure_chat_prompt, save_conversation, get_recent_conversations
 from flint.helpers import transcribe_audio_message, prepare_prompt
 from flint.state import embeddings_manager
 from flint.constants import (
@@ -95,9 +95,10 @@ if DEBUG:
     async def chat_dev(
         request: Request,
         Body: str,
+        username: Optional[str] = Form(None),
     ) -> Response:
         # Get the user object
-        target_username = "dev"
+        target_username = username if username is not None else "dev"
         user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(username=target_username)
         user_exists = await sync_to_async(user.exists)()
         if user_exists:
@@ -108,7 +109,11 @@ if DEBUG:
         uuid = user.khojuser.uuid
 
         # Get Conversation History
-        chat_history = state.conversation_sessions[uuid]
+        chat_history = state.conversation_sessions.get(uuid, None)
+        if chat_history is None:
+            logger.info(f"Attempting to retrieve conversation history for user {uuid}")
+            state.conversation_sessions[uuid] = await get_recent_conversations(user, uuid)
+            chat_history = state.conversation_sessions[uuid]
 
         relevant_previous_conversations = await embeddings_manager.search(Body, user)
         relevant_previous_conversations = await sync_to_async(list)(relevant_previous_conversations.all())
@@ -203,7 +208,13 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
 
     # Get Conversation History
     logger.info(f"Retrieving conversation history for {uuid}")
-    chat_history = state.conversation_sessions[uuid]
+
+    # Get Conversation History
+    chat_history = state.conversation_sessions.get(uuid, None)
+    if chat_history is None:
+        logger.info(f"Attempting to retrieve conversation history for user {uuid}")
+        state.conversation_sessions[uuid] = await get_recent_conversations(user, uuid)
+        chat_history = state.conversation_sessions[uuid]
 
     logger.info(f"Searching for relevant previous conversations for {uuid}")
     relevant_previous_conversations = await embeddings_manager.search(user_message, user)
