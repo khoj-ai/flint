@@ -137,3 +137,13 @@ def upload_telemetry():
         logger.error(f"📡 Error uploading telemetry: {e}", exc_info=True)
     finally:
         telemetry.clear()
+
+
+@schedule.repeat(schedule.every(1439).minutes)
+def clear_conversations():
+    from flint import state
+
+    start_time = datetime.now()
+    logger.info("Re-initializing conversation sessions")
+    state.conversation_sessions = initialize_conversation_sessions()
+    logger.info(f"Re-initializing conversation sessions took {datetime.now() - start_time}")
