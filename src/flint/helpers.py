@@ -1,5 +1,6 @@
 # Standard Packages
 from datetime import datetime
+import logging
 from logging import Logger
 import os
 import time
@@ -15,6 +16,8 @@ from langchain.memory import ConversationBufferMemory
 from flint.state import telemetry
 from flint.db.models import Conversation
 from flint.constants import MAX_TOKEN_LIMIT_PROMPT
+
+logger = logging.getLogger(__name__)
 
 
 def get_date():
@@ -45,6 +48,18 @@ def log_telemetry(
 def download_audio_message(audio_url, user_id):
     # Get the url of the voice message file
     url = requests.get(audio_url).url
+
+    # Send a HEAD request to the audio URL to get the size of the audio packet
+    head = requests.head(url)
+    # Get the content type of the voice message file
+    content_length = head.headers.get("Content-Length")
+    logger.info(f"Audio message content length is {content_length}")
+
+    # If the audio message is larger than 10 MB, return None
+    if int(content_length) > 10 * 1024 * 1024:
+        logger.info(f"Audio message is larger than 10 MB, skipping")
+        raise ValueError(f"Audio message is larger than 10 MB")
+
     # Create output file path with user_id and current timestamp
     filepath = f"/tmp/{user_id}_audio_{int(time.time() * 1000)}.ogg"
     # Download the voice message OGG file
@@ -55,8 +70,15 @@ def download_audio_message(audio_url, user_id):
 
 def transcribe_audio_message(audio_url: str, uuid: str, logger: Logger) -> str:
     "Transcribe audio message from twilio using OpenAI whisper"
-    # Download audio file
-    audio_message_file = download_audio_message(audio_url, uuid)
+
+    start_time = time.time()
+
+    try:
+        # Download audio file
+        audio_message_file = download_audio_message(audio_url, uuid)
+    except Exception as e:
+        logger.error(f"Failed to download audio by {uuid} with error {e}", exc_info=True)
+        return None
 
     # Transcribe the audio message using WhisperAPI
     logger.info(f"Transcribing audio file {audio_message_file}")
@@ -72,6 +94,8 @@ def transcribe_audio_message(audio_url: str, uuid: str, logger: Logger) -> str:
     finally:
         # Delete the audio MP3 file
         os.remove(audio_message_file)
+
+    logger.info(f"Transcribed audio message by {uuid} in {time.time() - start_time} seconds")
 
     return user_message
 

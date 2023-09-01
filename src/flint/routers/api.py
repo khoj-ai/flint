@@ -246,7 +246,7 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
         return
 
     if formatted_history_message != None:
-        asyncio.create_task(save_conversation(user, "", formatted_history_message, user_message_type))
+        asyncio.create_task(save_conversation(user, "", formatted_history_message, user_message_type="system"))
 
     # Get Response from Agent
     logger.info(f"Sending prompt to LLM for user {uuid}")
