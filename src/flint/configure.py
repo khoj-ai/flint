@@ -81,6 +81,8 @@ async def get_recent_conversations(user: User, uuid: str) -> ConversationBufferM
 async def save_conversation(user, message, response, user_message_type="text"):
     "Save the conversation to the database"
 
+    start_time = datetime.now()
+
     log_telemetry(
         telemetry_type="api",
         user_guid=str(user.khojuser.uuid),
@@ -109,7 +111,9 @@ async def save_conversation(user, message, response, user_message_type="text"):
         ]
     )
 
-    logger.info(f"💾 Saved conversation vector to the database for user {user.id}")
+    logger.info(
+        f"💾 Saved conversation vector to the database for user {user.id}. Generating conversation embeddings and saving {datetime.now() - start_time}"
+    )
 
 
 def configure_routes(app: FastAPI):
