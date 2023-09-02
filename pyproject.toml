@@ -45,6 +45,7 @@ dependencies = [
     "tiktoken >= 0.3.0",
     "sentence-transformers == 2.2.2",
     "cloudwatch == 1.0.5",
+    "gunicorn == 21.2.0",
  ]
 dynamic = ["version"]
 

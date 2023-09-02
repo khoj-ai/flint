@@ -57,7 +57,7 @@ def poll_task_scheduler():
     schedule.run_pending()
 
 
-def run():
+def run(should_start_server=True):
     if not os.getenv("DEBUG", False):
         AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
         AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
@@ -81,8 +81,12 @@ def run():
         )
     configure_routes(app)
     poll_task_scheduler()
-    start_server(app)
+    if should_start_server:
+        start_server(app)
 
 
 if __name__ == "__main__":
     run()
+
+else:
+    run(should_start_server=False)
