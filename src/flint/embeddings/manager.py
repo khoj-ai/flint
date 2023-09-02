@@ -64,7 +64,8 @@ class EmbeddingsManager:
             ConversationVector.objects.filter(conversation__in=conversations_to_search)
             .alias(distance=CosineDistance("vector", embedded_query))
             .filter(distance__lte=0.20)
-            .order_by("distance")[:top_n]
+            .order_by("distance")
+            .only("conversation")[:top_n]
         )
 
         if not await sync_to_async(sorted_vectors.exists)():
