@@ -33,4 +33,4 @@ RUN sed -i 's/dynamic = \["version"\]/version = "0.0.0"/' pyproject.toml && \
 EXPOSE 8488
 
 # Run the gunicorn server with the FastAPI app
-ENTRYPOINT ["gunicorn", "--bind", "0.0.0.0:8488", "src.flint.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornH11Worker"]
+ENTRYPOINT ["gunicorn", "--bind", "0.0.0.0:8488", "src.flint.main:app", "--workers", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "600", "--keep-alive", "120", "--threads", "2", "--worker-tmp-dir", "/dev/shm", "--log-level", "debug"]
