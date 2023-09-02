@@ -32,5 +32,5 @@ RUN sed -i 's/dynamic = \["version"\]/version = "0.0.0"/' pyproject.toml && \
 # Make port 8488 available to the world outside this container
 EXPOSE 8488
 
-# Run src.flint.main.py when the container launches
-ENTRYPOINT ["python3", "src/flint/main.py"]
+# Run the gunicorn server with the FastAPI app
+ENTRYPOINT ["gunicorn", "--bind", "0.0.0.0:8488", "src.flint.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornH11Worker"]
