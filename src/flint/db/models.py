@@ -1,4 +1,5 @@
 from flint.manage import init_django
+
 init_django()
 
 import uuid
@@ -9,7 +10,8 @@ from phonenumber_field.modelfields import PhoneNumberField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from pgvector.django import VectorField
+from pgvector.django import VectorField, IvfflatIndex
+
 
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -23,7 +25,8 @@ class BaseModel(models.Model):
 
     def __repr__(self):
         return self.__str__()
-    
+
+
 class KhojUser(BaseModel):
     id = models.AutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -36,11 +39,13 @@ class KhojUser(BaseModel):
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.id})"
-    
+
+
 @receiver(post_save, sender=User)
 def create_khoj_user(sender, instance, created, **kwargs):
     if created:
         KhojUser.objects.create(user=instance)
+
 
 @receiver(post_save, sender=User)
 def save_khoj_user(sender, instance, **kwargs):
@@ -59,16 +64,20 @@ class Conversation(BaseModel):
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.id})"
-    
+
+
 class ConversationVector(BaseModel):
     id = models.BigAutoField(primary_key=True)
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, null=False, related_name="vectors")
     compiled = models.TextField()
-    vector = VectorField(1024)
+    vector = VectorField(dimensions=1024)
 
     class Meta:
         db_table = "conversation_vector"
         ordering = ["-created_at"]
+        indexes = [
+            IvfflatIndex(name="vector_index", fields=["vector"], lists=100, opclasses=["vector_cosine_ops"]),
+        ]
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.id})"
