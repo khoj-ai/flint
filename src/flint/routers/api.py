@@ -190,7 +190,6 @@ def get_media_url(media_id):
     if int(file_size) > 10 * 1024 * 1024:
         logger.info(f"Audio message is larger than 10 MB, skipping")
         raise ValueError(f"Audio message is larger than 10 MB")
-    print(f"media id response: {response}")
     return response["url"]
 
 
@@ -488,7 +487,6 @@ async def response_to_user_whatsapp(message: str, user: User, from_number: str, 
     for chunk in chunks:
         data = make_whatsapp_payload(chunk, from_number)
         response = requests.post(url, json=data, headers=headers)
-        print(f"whatsapp message response: {response.json()}")
         response.raise_for_status()
 
     # Send Intro Message
