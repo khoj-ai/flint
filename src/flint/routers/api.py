@@ -170,14 +170,6 @@ def handle_audio_message(audio_id, uuid):
     return transcribe_audio_message(audio_url, uuid, logger)
 
 
-# download the media file from the media url
-def download_media_file(media_url):
-    headers = {
-        "Authorization": f"Bearer {whatsapp_token}",
-    }
-    return requests.get(media_url, headers=headers)
-
-
 # get the media url from the media id
 def get_media_url(media_id):
     headers = {
