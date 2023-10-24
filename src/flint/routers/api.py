@@ -137,13 +137,17 @@ async def handle_whatsapp_message(body):
     value = body["entry"][0]["changes"][0]["value"]
     from_number = value["messages"][0]["from"]
 
+    formatted_number = f"+{from_number}"
+
     # Get the user object
-    user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(khojuser__phone_number=from_number)
+    user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(
+        khojuser__phone_number=formatted_number
+    )
     user_exists = await user.aexists()
     intro_message = False
     if not user_exists:
-        user = await User.objects.acreate(username=from_number)
-        user.khojuser.phone_number = from_number
+        user = await User.objects.acreate(username=formatted_number)
+        user.khojuser.phone_number = formatted_number
         await user.asave()
         intro_message = True
     else:
