@@ -23,6 +23,8 @@ services:
       - OPENAI_API_KEY=sk-bob
       - POSTGRES_HOST=database
       - DEBUG=true
+      - WHATSAPP_TOKEN=EAAblah
+      - WHATSAPP_VERIFY_TOKEN=blah
     depends_on:
       - database
     volumes:

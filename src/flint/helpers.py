@@ -4,7 +4,6 @@ import logging
 from logging import Logger
 import os
 import time
-import urllib.request
 
 # External Packages
 import openai
@@ -17,11 +16,22 @@ from flint.state import telemetry
 from flint.db.models import Conversation
 from flint.constants import MAX_TOKEN_LIMIT_PROMPT
 
+whatsapp_token = os.getenv("WHATSAPP_TOKEN")
+
 logger = logging.getLogger(__name__)
 
 
 def get_date():
     return datetime.utcnow().strftime("%Y-%m-%d %A")
+
+
+def make_whatsapp_payload(body, to):
+    return {
+        "text": {"body": body},
+        "to": to,
+        "type": "text",
+        "messaging_product": "whatsapp",
+    }
 
 
 def log_telemetry(
@@ -46,24 +56,17 @@ def log_telemetry(
 
 
 def download_audio_message(audio_url, user_id):
-    # Get the url of the voice message file
-    url = requests.get(audio_url).url
-
-    # Send a HEAD request to the audio URL to get the size of the audio packet
-    head = requests.head(url)
-    # Get the content type of the voice message file
-    content_length = head.headers.get("Content-Length")
-    logger.info(f"Audio message content length is {content_length}")
-
-    # If the audio message is larger than 10 MB, return None
-    if int(content_length) > 10 * 1024 * 1024:
-        logger.info(f"Audio message is larger than 10 MB, skipping")
-        raise ValueError(f"Audio message is larger than 10 MB")
+    headers = {
+        "Authorization": f"Bearer {whatsapp_token}",
+    }
+    response = requests.get(audio_url, headers=headers)
 
     # Create output file path with user_id and current timestamp
     filepath = f"/tmp/{user_id}_audio_{int(time.time() * 1000)}.ogg"
     # Download the voice message OGG file
-    urllib.request.urlretrieve(url, filepath)
+    with open(filepath, "wb") as f:
+        f.write(response.content)
+
     # Return file path to audio message
     return os.path.join(os.getcwd(), filepath)
 
