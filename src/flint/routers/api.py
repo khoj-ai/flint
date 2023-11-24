@@ -255,8 +255,7 @@ if DEBUG:
             state.conversation_sessions[uuid] = await get_recent_conversations(user, uuid)
             chat_history = state.conversation_sessions[uuid]
 
-        relevant_previous_conversations = await embeddings_manager.search(Body, user)
-        relevant_previous_conversations = await sync_to_async(list)(relevant_previous_conversations.all())
+        relevant_previous_conversations = []
 
         try:
             user_message, formatted_history_message, adjusted_memory_buffer = prepare_prompt(
