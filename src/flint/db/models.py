@@ -64,20 +64,3 @@ class Conversation(BaseModel):
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.id})"
-
-
-class ConversationVector(BaseModel):
-    id = models.BigAutoField(primary_key=True)
-    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, null=False, related_name="vectors")
-    compiled = models.TextField()
-    vector = VectorField(dimensions=1024)
-
-    class Meta:
-        db_table = "conversation_vector"
-        ordering = ["-created_at"]
-        indexes = [
-            IvfflatIndex(name="vector_index", fields=["vector"], lists=100, opclasses=["vector_cosine_ops"]),
-        ]
-
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.id})"

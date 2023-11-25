@@ -17,8 +17,8 @@ import requests
 import schedule
 
 # Internal Packages
-from flint.db.models import Conversation, ConversationVector
-from flint.state import llm, telemetry, embeddings_manager
+from flint.db.models import Conversation
+from flint.state import llm, telemetry
 from flint.constants import telemetry_server
 from flint.helpers import log_telemetry
 from flint.prompt import system_prompt
@@ -90,30 +90,13 @@ async def save_conversation(user, message, response, user_message_type="text"):
         properties={"user_message_type": user_message_type},
     )
 
-    conversation = await sync_to_async(Conversation.objects.create)(
+    await sync_to_async(Conversation.objects.create)(
         user=user,
         user_message=message,
         bot_message=response,
     )
 
-    full_document = f"{message} {response}"
-
-    embeddings = [embedding for embedding in embeddings_manager.generate_embeddings(full_document)]
-
-    await sync_to_async(ConversationVector.objects.bulk_create)(
-        [
-            ConversationVector(
-                conversation=conversation,
-                vector=embedding.vector,
-                compiled=embedding.compiled,
-            )
-            for embedding in embeddings
-        ]
-    )
-
-    logger.info(
-        f"💾 Saved conversation vector to the database for user {user.id}. Generating conversation embeddings and saving {datetime.now() - start_time}"
-    )
+    logger.info(f"💾 Saved conversation vector to the database for user {user.id} at {datetime.now() - start_time}")
 
 
 def configure_routes(app: FastAPI):

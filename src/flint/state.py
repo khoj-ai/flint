@@ -7,13 +7,9 @@ from langchain.memory import ConversationBufferMemory
 
 from langchain.chat_models import ChatOpenAI
 
-from flint.embeddings.manager import EmbeddingsManager
-
 MODEL_NAME = "gpt-3.5-turbo-16k"
 llm = ChatOpenAI(temperature=0, model_name=MODEL_NAME)
 conversation_sessions = defaultdict(
     lambda: ConversationBufferMemory(memory_key="chat_history", return_messages=True, llm=llm)
 )
 telemetry: List[Dict[str, str]] = []
-
-embeddings_manager = EmbeddingsManager()

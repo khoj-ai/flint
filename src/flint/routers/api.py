@@ -18,7 +18,6 @@ from twilio.rest import Client
 from flint import state
 from flint.configure import configure_chat_prompt, save_conversation, get_recent_conversations
 from flint.helpers import transcribe_audio_message, prepare_prompt, make_whatsapp_payload
-from flint.state import embeddings_manager
 from flint.constants import (
     KHOJ_INTRO_MESSAGE,
     KHOJ_PROMPT_EXCEEDED_MESSAGE,
@@ -255,12 +254,10 @@ if DEBUG:
             state.conversation_sessions[uuid] = await get_recent_conversations(user, uuid)
             chat_history = state.conversation_sessions[uuid]
 
-        relevant_previous_conversations = []
-
         try:
             user_message, formatted_history_message, adjusted_memory_buffer = prepare_prompt(
                 chat_history=chat_history,
-                relevant_previous_conversations=relevant_previous_conversations,
+                relevant_previous_conversations=[],
                 user_message=Body,
                 model_name=state.MODEL_NAME,
             )
@@ -279,32 +276,6 @@ if DEBUG:
         asyncio.create_task(save_conversation(user, user_message, chat_response_text, "text"))
 
         return chat_response_text
-
-    @api.post("/dev/search")
-    async def search_dev(
-        request: Request,
-        query: str,
-    ) -> Response:
-        # Get the user object
-        target_username = "dev"
-        user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(username=target_username)
-        user_exists = await sync_to_async(user.exists)()
-        if user_exists:
-            user = await sync_to_async(user.get)()
-        else:
-            user = await sync_to_async(User.objects.create)(username=target_username)
-            await sync_to_async(user.save)()
-
-        relevant_previous_conversations = await embeddings_manager.search(query, user, debug=True)
-        relevant_previous_conversations = await sync_to_async(list)(relevant_previous_conversations.all())
-
-        conversation_history = ""
-        for c in relevant_previous_conversations:
-            conversation_history += f"Human: {c.user_message}\nKhoj:{c.bot_message}\n\n"
-
-        conversation_history = "none" if conversation_history == "" else conversation_history
-
-        return Response(content=conversation_history, media_type="text/plain")
 
 
 async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0, From, To, intro_message=False):
@@ -356,16 +327,14 @@ async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0
         chat_history = state.conversation_sessions[uuid]
 
     logger.info(f"Searching for relevant previous conversations for {uuid}")
-    relevant_previous_conversations = await embeddings_manager.search(user_message, user)
 
     logger.info(f"Retrieved relevant previous conversations for {uuid}")
-    relevant_previous_conversations = await sync_to_async(list)(relevant_previous_conversations.all())
 
     try:
         logger.info(f"Preparing prompt for {uuid}")
         user_message, formatted_history_message, adjusted_memory_buffer = prepare_prompt(
             chat_history=chat_history,
-            relevant_previous_conversations=relevant_previous_conversations,
+            relevant_previous_conversations=[],
             user_message=user_message,
             model_name=state.MODEL_NAME,
         )
