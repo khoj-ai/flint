@@ -88,7 +88,6 @@ def transcribe_audio_message(audio_url: str, uuid: str, logger: Logger) -> str:
     try:
         # Read the audio message from MP3
         with open(audio_message_file, "rb") as audio_file:
-            transcribed = openai.Audio.translate(model="whisper-1", file=audio_file)
             # Call the OpenAI API to transcribe the audio using Whisper API
             transcribed = openai.audio.translations.create(
                 model="whisper-1",
