@@ -143,12 +143,12 @@ async def handle_whatsapp_message(body):
         khojuser__phone_number=formatted_number
     )
     user_exists = await user.aexists()
-    intro_message = False
+    intro_message = value["messages"][0]["type"] == "request_welcome"
+
     if not user_exists:
         user = await User.objects.acreate(username=formatted_number)
         user.khojuser.phone_number = formatted_number
         await user.asave()
-        intro_message = True
     else:
         user = await user.aget()
 
@@ -405,6 +405,15 @@ async def response_to_user_whatsapp(message: str, user: User, from_number: str, 
     }
     url = "https://graph.facebook.com/v17.0/" + phone_number_id + "/messages"
 
+    # Send Intro Message
+    if intro_message:
+        data = make_whatsapp_payload(KHOJ_INTRO_MESSAGE, from_number)
+        response = requests.post(url, json=data, headers=headers)
+        asyncio.create_task(
+            save_conversation(user=user, message="", response=KHOJ_INTRO_MESSAGE, user_message_type="system")
+        )
+        return Response(status_code=200)
+
     # Get Conversation History
     logger.info(f"Retrieving conversation history for {uuid}")
 
@@ -452,13 +461,5 @@ async def response_to_user_whatsapp(message: str, user: User, from_number: str, 
         data = make_whatsapp_payload(chunk, from_number)
         response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()
-
-    # Send Intro Message
-    if intro_message:
-        data = make_whatsapp_payload(KHOJ_INTRO_MESSAGE, from_number)
-        response = requests.post(url, json=data, headers=headers)
-        asyncio.create_task(
-            save_conversation(user=user, message="", response=KHOJ_INTRO_MESSAGE, user_message_type="system")
-        )
 
     return Response(status_code=200)
