@@ -9,7 +9,6 @@ from rich.logging import RichHandler
 import uvicorn
 from fastapi import Request
 import schedule
-from cloudwatch import cloudwatch
 from django.core.management import call_command
 
 # Internal Packages
@@ -61,20 +60,6 @@ def poll_task_scheduler():
 
 
 def run(should_start_server=True):
-    if not os.getenv("DEBUG", False):
-        AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-        AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        cloudwatch_handler = cloudwatch.CloudwatchHandler(
-            access_id=AWS_ACCESS_KEY_ID,
-            access_key=AWS_SECRET_ACCESS_KEY,
-            log_group=log_group,
-            region="us-east-1",
-        )
-        cloudwatch_handler.setLevel(logging.INFO)
-        cloudwatch_handler.setFormatter(formatter)
-        logger.addHandler(cloudwatch_handler)
-
     try:
         state.conversation_sessions = initialize_conversation_sessions()
     except Exception as e:

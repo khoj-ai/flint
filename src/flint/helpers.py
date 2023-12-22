@@ -72,7 +72,7 @@ def download_audio_message(audio_url, user_id):
 
 
 def transcribe_audio_message(audio_url: str, uuid: str, logger: Logger) -> str:
-    "Transcribe audio message from twilio using OpenAI whisper"
+    "Transcribe audio message using OpenAI whisper"
 
     start_time = time.time()
 

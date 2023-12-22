@@ -34,7 +34,6 @@ dependencies = [
     "rich >= 13.3.1",
     "schedule == 1.1.0",
     "python-multipart >= 0.0.6",
-    "twilio >= 8.5.0",
     "openai >= 0.27.8",
     "langchain >= 0.0.187",
     "django == 4.2.4",
@@ -43,8 +42,6 @@ dependencies = [
     "django-phonenumber-field == 7.1.0",
     "phonenumbers == 8.13.17",
     "tiktoken >= 0.3.0",
-    "sentence-transformers == 2.2.2",
-    "cloudwatch == 1.0.5",
     "gunicorn == 21.2.0",
  ]
 dynamic = ["version"]

@@ -10,9 +10,7 @@ from asgiref.sync import sync_to_async
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from fastapi.params import Form
-from langchain import LLMChain
-from twilio.request_validator import RequestValidator
-from twilio.rest import Client
+from langchain.chains import LLMChain
 
 # Internal Packages
 from flint import state
@@ -32,11 +30,6 @@ from django.contrib.auth.models import User
 # Initialize Router
 api = APIRouter()
 logger = logging.getLogger(__name__)
-
-# Initialize Twilio Client
-account_sid = os.getenv("TWILIO_ACCOUNT_SID")
-auth_token = os.getenv("TWILIO_AUTH_TOKEN")
-twillio_client = Client(account_sid, auth_token)
 
 MAX_CHARACTERS_TWILIO = 1600
 MAX_CHARACTERS_PROMPT = 1000
@@ -143,6 +136,7 @@ async def handle_whatsapp_message(body):
         khojuser__phone_number=formatted_number
     )
     user_exists = await user.aexists()
+    logger.info(f"{value['messages'][0]['type']} message received from {formatted_number}")
     intro_message = value["messages"][0]["type"] == "request_welcome"
 
     if not user_exists:
@@ -186,46 +180,6 @@ def get_media_url(media_id):
         logger.info(f"Audio message is larger than 10 MB, skipping")
         raise ValueError(f"Audio message is larger than 10 MB")
     return response["url"]
-
-
-# Setup API Endpoints
-@api.post("/chat")
-async def chat(
-    request: Request,
-    From: str = Form(...),
-    Body: Optional[str] = Form(None),
-    To: str = Form(...),
-    MediaUrl0: Optional[str] = Form(None),
-    MediaContentType0: Optional[str] = Form(None),
-) -> Response:
-    # Authenticate Request from Twilio
-    validator = RequestValidator(auth_token)
-    form_ = await request.form()
-    logger.debug(f"Request Headers: {request.headers}")
-    if not validator.validate(str(request.url), form_, request.headers.get("X-Twilio-Signature", "")):
-        logger.error("Error in Twilio Signature")
-        raise HTTPException(status_code=401, detail="Unauthorized signature")
-
-    # Return OK if empty message is received. This is usually a message reaction
-    if Body is None and MediaUrl0 is None:
-        logger.warning("Received empty message. This could be a simple message reaction.")
-        return Response(status_code=200)
-
-    # Get the user object
-    user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(khojuser__phone_number=From)
-    user_exists = await sync_to_async(user.exists)()
-    intro_message = False
-    if not user_exists:
-        user_phone_number = From.split(":")[1]
-        user = await sync_to_async(User.objects.create)(username=user_phone_number)
-        user.khojuser.phone_number = user_phone_number
-        await sync_to_async(user.save)()
-        intro_message = True
-    else:
-        user = await sync_to_async(user.get)()
-
-    asyncio.create_task(respond_to_user(Body, user, MediaUrl0, MediaContentType0, From, To, intro_message))
-    return Response(status_code=200)
 
 
 if DEBUG:
@@ -276,119 +230,6 @@ if DEBUG:
         asyncio.create_task(save_conversation(user, user_message, chat_response_text, "text"))
 
         return chat_response_text
-
-
-async def respond_to_user(message: str, user: User, MediaUrl0, MediaContentType0, From, To, intro_message=False):
-    # Initialize user message to the body of the request
-    uuid = user.khojuser.uuid
-    user_message = message
-    user_message_type = "text"
-
-    if MediaUrl0 is not None and MediaContentType0 is not None:
-        # Check if message is an audio message
-        if MediaContentType0.startswith("audio/"):
-            audio_url = MediaUrl0
-            audio_type = MediaContentType0.split("/")[1]
-            user_message_type = "voice_message"
-            logger.info(f"Received audio message from {uuid} with url {audio_url} and type {audio_type}")
-            user_message = transcribe_audio_message(audio_url, uuid, logger)
-            if user_message is None:
-                logger.error(f"Failed to transcribe audio by {uuid}")
-                message = twillio_client.messages.create(
-                    body=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, from_=To, to=From
-                )
-                asyncio.create_task(
-                    save_conversation(
-                        user=user,
-                        message="",
-                        response=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE,
-                        user_message_type="system",
-                    )
-                )
-                return message.sid
-        else:
-            logger.warning(f"Received media of unsupported type {MediaContentType0} from {uuid}")
-            message = twillio_client.messages.create(body=KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE, from_=To, to=From)
-            asyncio.create_task(
-                save_conversation(
-                    user=user, message="", response=KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE, user_message_type="system"
-                )
-            )
-            return message.sid
-
-    # Get Conversation History
-    logger.info(f"Retrieving conversation history for {uuid}")
-
-    # Get Conversation History
-    chat_history = state.conversation_sessions.get(uuid, None)
-    if chat_history is None:
-        logger.info(f"Attempting to retrieve conversation history for user {uuid}")
-        state.conversation_sessions[uuid] = await get_recent_conversations(user, uuid)
-        chat_history = state.conversation_sessions[uuid]
-
-    logger.info(f"Searching for relevant previous conversations for {uuid}")
-
-    logger.info(f"Retrieved relevant previous conversations for {uuid}")
-
-    try:
-        logger.info(f"Preparing prompt for {uuid}")
-        user_message, formatted_history_message, adjusted_memory_buffer = prepare_prompt(
-            chat_history=chat_history,
-            relevant_previous_conversations=[],
-            user_message=user_message,
-            model_name=state.MODEL_NAME,
-        )
-    except ValueError as e:
-        logger.error(f"Prompt exceeded maximum length: {e}", exc_info=True)
-        message = twillio_client.messages.create(
-            body=KHOJ_PROMPT_EXCEEDED_MESSAGE,
-            from_=To,
-            to=From,
-        )
-        asyncio.create_task(
-            save_conversation(user=user, message="", response=KHOJ_PROMPT_EXCEEDED_MESSAGE, user_message_type="system")
-        )
-        return message.sid
-    except Exception as e:
-        logger.error(f"Failed to prepare prompt: {e}", exc_info=True)
-        return
-
-    if formatted_history_message != None:
-        asyncio.create_task(save_conversation(user, "", formatted_history_message, user_message_type="system"))
-
-    # Get Response from Agent
-    logger.info(f"Sending prompt to LLM for user {uuid}")
-    chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=adjusted_memory_buffer)(
-        {"question": user_message}
-    )
-    chat_response_text = chat_response["text"]
-
-    asyncio.create_task(
-        save_conversation(
-            user=user, message=user_message, response=chat_response_text, user_message_type=user_message_type
-        )
-    )
-
-    # Split response into 1600 character chunks
-    chunks = [
-        chat_response_text[i : i + MAX_CHARACTERS_TWILIO]
-        for i in range(0, len(chat_response_text), MAX_CHARACTERS_TWILIO)
-    ]
-    for chunk in chunks:
-        message = twillio_client.messages.create(body=chunk, from_=To, to=From)
-
-    # Send Intro Message
-    if intro_message:
-        message = twillio_client.messages.create(
-            body=KHOJ_INTRO_MESSAGE,
-            from_=To,
-            to=From,
-        )
-        asyncio.create_task(
-            save_conversation(user=user, message="", response=KHOJ_INTRO_MESSAGE, user_message_type="system")
-        )
-
-    return message.sid
 
 
 async def response_to_user_whatsapp(message: str, user: User, from_number: str, body, intro_message=False):
@@ -453,13 +294,8 @@ async def response_to_user_whatsapp(message: str, user: User, from_number: str, 
     )
 
     # Split response into 1600 character chunks
-    chunks = [
-        chat_response_text[i : i + MAX_CHARACTERS_TWILIO]
-        for i in range(0, len(chat_response_text), MAX_CHARACTERS_TWILIO)
-    ]
-    for chunk in chunks:
-        data = make_whatsapp_payload(chunk, from_number)
-        response = requests.post(url, json=data, headers=headers)
-        response.raise_for_status()
+    data = make_whatsapp_payload(chat_response_text, from_number)
+    response = requests.post(url, json=data, headers=headers)
+    response.raise_for_status()
 
     return Response(status_code=200)

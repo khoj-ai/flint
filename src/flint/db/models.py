@@ -10,8 +10,6 @@ from phonenumber_field.modelfields import PhoneNumberField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from pgvector.django import VectorField, IvfflatIndex
-
 
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
