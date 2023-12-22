@@ -10,6 +10,7 @@ import uvicorn
 from fastapi import Request
 import schedule
 from cloudwatch import cloudwatch
+from django.core.management import call_command
 
 # Internal Packages
 from flint.configure import configure_routes, initialize_conversation_sessions
@@ -30,6 +31,8 @@ if os.getenv("DEBUG", False):
 else:
     app = FastAPI(docs_url=None, redoc_url=None)
     log_group = "flint"
+
+call_command("migrate", "--noinput")
 
 
 @app.middleware("http")
