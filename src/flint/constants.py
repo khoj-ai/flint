@@ -1,3 +1,5 @@
+import os
+
 telemetry_server = "https://khoj.beta.haletic.com/v1/telemetry"
 KHOJ_WHATSAPP_PROD = "whatsapp:+18488004242"
 KHOJ_WHATSAPP_DEBUG = "whatsapp:+14155238886"
@@ -22,3 +24,7 @@ Sorry, I wasn't able to understand your voice message this time. Could you pleas
 KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE = f"""
 Sorry, I'm still learning and can only understand text or voice message right now. Maybe share the content as a text message with me? Or if you really need this feature, email my creators at team@khoj.dev.
 """.strip()
+
+KHOJ_API_URL = os.getenv("KHOJ_API_URL", "https://khoj.dev")
+KHOJ_API_CLIENT_ID = os.getenv("KHOJ_API_CLIENT_ID")
+KHOJ_API_CLIENT_SECRET = os.getenv("KHOJ_API_CLIENT_SECRET")

@@ -4,21 +4,38 @@ import logging
 from logging import Logger
 import os
 import time
+import urllib.parse
 
 # External Packages
 import openai
 import tiktoken
 import requests
 from langchain.memory import ConversationBufferMemory
+from langchain.chains import LLMChain
 
 # Internal Packages
 from flint.state import telemetry
 from flint.db.models import Conversation
-from flint.constants import MAX_TOKEN_LIMIT_PROMPT
+from flint.constants import MAX_TOKEN_LIMIT_PROMPT, KHOJ_API_URL, KHOJ_API_CLIENT_SECRET, KHOJ_API_CLIENT_ID
 
 whatsapp_token = os.getenv("WHATSAPP_TOKEN")
 
 logger = logging.getLogger(__name__)
+
+KHOJ_CHAT_API_ENDPOINT = (
+    f"{KHOJ_API_URL}/api/chat?client_id={KHOJ_API_CLIENT_ID}&client_secret={KHOJ_API_CLIENT_SECRET}"
+)
+
+COMMANDS = {
+    "/online": "/online",
+    "/dream": "/image",
+    "/general": "/general",
+}
+
+UNIMPLEMENTED_COMMANDS = {
+    "/notes": "/notes",
+    "/speak": "/speak",
+}
 
 
 def get_date():
@@ -32,6 +49,10 @@ def make_whatsapp_payload(body, to):
         "type": "text",
         "messaging_product": "whatsapp",
     }
+
+
+def make_whatsapp_image_payload(media_id, to):
+    return {"type": "image", "media": {"id": media_id}, "to": to, "messaging_product": "whatsapp"}
 
 
 def log_telemetry(
@@ -55,14 +76,14 @@ def log_telemetry(
     telemetry.append(row)
 
 
-def download_audio_message(audio_url, user_id):
+def download_audio_message(audio_url, random_id):
     headers = {
         "Authorization": f"Bearer {whatsapp_token}",
     }
     response = requests.get(audio_url, headers=headers)
 
     # Create output file path with user_id and current timestamp
-    filepath = f"/tmp/{user_id}_audio_{int(time.time() * 1000)}.ogg"
+    filepath = f"/tmp/{random_id}_audio_{int(time.time() * 1000)}.ogg"
     # Download the voice message OGG file
     with open(filepath, "wb") as f:
         f.write(response.content)
@@ -110,6 +131,57 @@ def get_num_tokens(message: str, model_name: str) -> int:
     encoder = tiktoken.encoding_for_model(model_name)
     num_tokens = len(encoder.encode(message))
     return num_tokens
+
+
+def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
+    """
+    Send the user message to the backend LLM service and return the response
+    """
+    encoded_phone_number = urllib.parse.quote(user_number)
+    encoded_user_message = urllib.parse.quote(user_message)
+
+    if user_message.startswith(tuple(UNIMPLEMENTED_COMMANDS.keys())):
+        return {
+            "response": "Sorry, that command is not yet implemented. Try another one! Let us know if you want this sooner by emailing team@khoj.dev"
+        }
+
+    cmd_options = COMMANDS.keys()
+    if user_message.startswith(tuple(cmd_options)):
+        for cmd in cmd_options:
+            if user_message.startswith(cmd):
+                user_message = user_message.replace(cmd, COMMANDS[cmd])
+                break
+    else:
+        user_message = f"/default {user_message}"
+
+    khoj_api = f"{KHOJ_CHAT_API_ENDPOINT}&phone_number={encoded_phone_number}&q={encoded_user_message}&stream=false&create_if_not_exists=true"
+    response = requests.get(khoj_api)
+    response.raise_for_status()
+    return response.json()
+
+
+def upload_media_to_whatsapp(media_filepath: str, media_type: str, phone_id: str) -> str:
+    headers = {
+        "Authorization": f"Bearer {whatsapp_token}",
+    }
+
+    with open(media_filepath, "rb") as f:
+        files = {
+            "file": f,
+            "type": (None, media_type),
+            "messaging_product": (None, "whatsapp"),
+        }
+
+        response = requests.post(f"https://graph.facebook.com/v18.0/{phone_id}/media", headers=headers, files=files)
+
+    if response.status_code == 200:
+        response_json = response.json()
+        if "id" in response_json:
+            return response_json["id"]
+        else:
+            raise ValueError("Response does not contain 'id'")
+    else:
+        response.raise_for_status()
 
 
 def prepare_prompt(
