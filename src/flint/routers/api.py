@@ -11,15 +11,11 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from fastapi.params import Form
-from langchain.chains import LLMChain
 from fastapi import Body
 
 # Internal Packages
-from flint import state
-from flint.configure import configure_chat_prompt, save_conversation, get_recent_conversations
 from flint.helpers import (
     transcribe_audio_message,
-    prepare_prompt,
     make_whatsapp_payload,
     send_message_to_khoj_chat,
     make_whatsapp_image_payload,
