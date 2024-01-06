@@ -197,6 +197,8 @@ if DEBUG:
             chat_response_text = f"Image saved to {filepath}"
         elif chat_response.get("response", None):
             chat_response_text = chat_response["response"]
+        elif chat_response.get("detail", None):
+            chat_response_text = chat_response["detail"]
 
         return chat_response_text
 
@@ -222,12 +224,12 @@ async def response_to_user_whatsapp(message: str, from_number: str, body, intro_
     # Get Response from Agent
     chat_response = send_message_to_khoj_chat(user_message, from_number)
 
-    if chat_response["text"]:
-        chat_response_text = chat_response["text"]
+    if chat_response.get("response", None):
+        chat_response_text = chat_response["response"]
         data = make_whatsapp_payload(chat_response_text, from_number)
         response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()
-    elif chat_response["image"]:
+    elif chat_response.get("image", None):
         encoded_img = chat_response["image"]
         if encoded_img:
             # Write the file to a tmp directory

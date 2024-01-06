@@ -52,7 +52,7 @@ def make_whatsapp_payload(body, to):
 
 
 def make_whatsapp_image_payload(media_id, to):
-    return {"type": "image", "media": {"id": media_id}, "to": to, "messaging_product": "whatsapp"}
+    return {"type": "image", "image": {"id": media_id}, "to": to, "messaging_product": "whatsapp"}
 
 
 def log_telemetry(
@@ -138,7 +138,6 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
     Send the user message to the backend LLM service and return the response
     """
     encoded_phone_number = urllib.parse.quote(user_number)
-    encoded_user_message = urllib.parse.quote(user_message)
 
     if user_message.startswith(tuple(UNIMPLEMENTED_COMMANDS.keys())):
         return {
@@ -154,10 +153,17 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
     else:
         user_message = f"/default {user_message}"
 
+    encoded_user_message = urllib.parse.quote(user_message)
+
     khoj_api = f"{KHOJ_CHAT_API_ENDPOINT}&phone_number={encoded_phone_number}&q={encoded_user_message}&stream=false&create_if_not_exists=true"
     response = requests.get(khoj_api)
-    response.raise_for_status()
-    return response.json()
+    if response.status_code == 200:
+        return response.json()
+    elif response.status_code == 429:
+        return response.json()
+    else:
+        logger.error(f"Failed to get response from Khoj. Error: {response.json()}")
+        return {"response": "Sorry, I'm having trouble understanding you. Could you please try again?"}
 
 
 def upload_media_to_whatsapp(media_filepath: str, media_type: str, phone_id: str) -> str:
@@ -167,7 +173,7 @@ def upload_media_to_whatsapp(media_filepath: str, media_type: str, phone_id: str
 
     with open(media_filepath, "rb") as f:
         files = {
-            "file": f,
+            "file": (media_filepath, f, media_type),
             "type": (None, media_type),
             "messaging_product": (None, "whatsapp"),
         }
