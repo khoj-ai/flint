@@ -18,9 +18,7 @@ whatsapp_token = os.getenv("WHATSAPP_TOKEN")
 
 logger = logging.getLogger(__name__)
 
-KHOJ_CHAT_API_ENDPOINT = (
-    f"{KHOJ_API_URL}/api/chat?client_id={KHOJ_API_CLIENT_ID}&client_secret={KHOJ_API_CLIENT_SECRET}"
-)
+KHOJ_CHAT_API_ENDPOINT = f"{KHOJ_API_URL}/api/chat?client_id={KHOJ_API_CLIENT_ID}"
 
 COMMANDS = {
     "/online": "/online",
@@ -145,8 +143,12 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
 
     encoded_user_message = urllib.parse.quote(user_message)
 
+    headers = {
+        "Authorization": f"Bearer {KHOJ_API_CLIENT_SECRET}",
+    }
+
     khoj_api = f"{KHOJ_CHAT_API_ENDPOINT}&phone_number={encoded_phone_number}&q={encoded_user_message}&stream=false&create_if_not_exists=true"
-    response = requests.get(khoj_api)
+    response = requests.get(khoj_api, headers=headers)
     if response.status_code == 200:
         return response.json()
     elif response.status_code == 429:
