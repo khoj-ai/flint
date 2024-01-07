@@ -1,30 +1,32 @@
 # Standard Packages
-import asyncio
 import logging
 import os
 import requests
+import time
+import base64
+import uuid
 from typing import Optional
 
 # External Packages
-from asgiref.sync import sync_to_async
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from fastapi.params import Form
-from langchain.chains import LLMChain
+from fastapi import Body
 
 # Internal Packages
-from flint import state
-from flint.configure import configure_chat_prompt, save_conversation, get_recent_conversations
-from flint.helpers import transcribe_audio_message, prepare_prompt, make_whatsapp_payload
+from flint.helpers import (
+    transcribe_audio_message,
+    make_whatsapp_payload,
+    send_message_to_khoj_chat,
+    make_whatsapp_image_payload,
+    upload_media_to_whatsapp,
+)
 from flint.constants import (
     KHOJ_INTRO_MESSAGE,
-    KHOJ_PROMPT_EXCEEDED_MESSAGE,
     KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE,
-    KHOJ_UNSUPPORTED_MEDIA_TYPE_MESSAGE,
 )
 
 # Keep Django module import here to avoid import ordering errors
-from django.contrib.auth.models import User
 
 
 # Initialize Router
@@ -81,8 +83,9 @@ async def whatsapp_chat(
 @api.post("/whatsapp_chat")
 async def whatsapp_chat_post(
     request: Request,
+    body=Body(...),
 ):
-    await handle_message(request)
+    await handle_message(body=body)
     return Response(status_code=200)
 
 
@@ -103,9 +106,8 @@ def verified_body(body):
 
 
 # handle incoming webhook messages
-async def handle_message(request: Request):
+async def handle_message(body):
     # Parse Request body in json format
-    body = await request.json()
     logger.info(f"request body: {body}")
 
     try:
@@ -131,20 +133,8 @@ async def handle_whatsapp_message(body):
 
     formatted_number = f"+{from_number}"
 
-    # Get the user object
-    user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(
-        khojuser__phone_number=formatted_number
-    )
-    user_exists = await user.aexists()
     logger.info(f"{value['messages'][0]['type']} message received from {formatted_number}")
     intro_message = value["messages"][0]["type"] == "request_welcome"
-
-    if not user_exists:
-        user = await User.objects.acreate(username=formatted_number)
-        user.khojuser.phone_number = formatted_number
-        await user.asave()
-    else:
-        user = await user.aget()
 
     message = body["entry"][0]["changes"][0]["value"]["messages"][0]
     if message["type"] == "text":
@@ -154,17 +144,18 @@ async def handle_whatsapp_message(body):
         logger.info("audio message received")
         audio_id = message["audio"]["id"]
         try:
-            message_body = handle_audio_message(audio_id, user.khojuser.uuid)
+            message_body = handle_audio_message(audio_id)
         except ValueError as e:
             logger.error(f"Failed to handle audio message: {e}", exc_info=True)
             raise HTTPException(status_code=400, detail=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE)
-    await response_to_user_whatsapp(message_body, user, from_number, body, intro_message)
+    await response_to_user_whatsapp(message_body, from_number, body, intro_message)
 
 
 # handle audio messages
-def handle_audio_message(audio_id, uuid):
+def handle_audio_message(audio_id):
+    random_uuid = uuid.uuid4()
     audio_url = get_media_url(audio_id)
-    return transcribe_audio_message(audio_url, uuid, logger)
+    return transcribe_audio_message(audio_url, random_uuid, logger)
 
 
 # get the media url from the media id
@@ -187,56 +178,30 @@ if DEBUG:
     @api.post("/dev/chat")
     async def chat_dev(
         request: Request,
-        Body: str,
-        username: Optional[str] = Form(None),
+        body=Body(...),
+        phone_number: Optional[str] = Form(None),
     ) -> Response:
-        # Get the user object
-        target_username = username if username is not None else "dev"
-        user = await sync_to_async(User.objects.prefetch_related("khojuser").filter)(username=target_username)
-        user_exists = await sync_to_async(user.exists)()
-        if user_exists:
-            user = await sync_to_async(user.get)()
-        else:
-            user = await sync_to_async(User.objects.create)(username=target_username)
-            await sync_to_async(user.save)()
-        uuid = user.khojuser.uuid
+        chat_response = send_message_to_khoj_chat(body, phone_number)
 
-        # Get Conversation History
-        chat_history = state.conversation_sessions.get(uuid, None)
-        if chat_history is None:
-            logger.info(f"Attempting to retrieve conversation history for user {uuid}")
-            state.conversation_sessions[uuid] = await get_recent_conversations(user, uuid)
-            chat_history = state.conversation_sessions[uuid]
-
-        try:
-            user_message, formatted_history_message, adjusted_memory_buffer = prepare_prompt(
-                chat_history=chat_history,
-                relevant_previous_conversations=[],
-                user_message=Body,
-                model_name=state.MODEL_NAME,
-            )
-        except ValueError as e:
-            logger.error(f"Prompt exceeded maximum length: {e}", exc_info=True)
-
-        if formatted_history_message != None:
-            asyncio.create_task(save_conversation(user, "", formatted_history_message, "text"))
-
-        # Get Response from Agent
-        chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=adjusted_memory_buffer)(
-            {"question": user_message}
-        )
-        chat_response_text = chat_response["text"]
-
-        asyncio.create_task(save_conversation(user, user_message, chat_response_text, "text"))
+        if chat_response.get("image"):
+            encoded_img = chat_response["image"]
+            if encoded_img:
+                # Write the file to a tmp directory
+                filepath = f"/tmp/{int(time.time() * 1000)}.png"
+                with open(filepath, "wb") as f:
+                    f.write(base64.b64decode(encoded_img))
+            chat_response_text = f"Image saved to {filepath}"
+        elif chat_response.get("response"):
+            chat_response_text = chat_response["response"]
+        elif chat_response.get("detail"):
+            chat_response_text = chat_response["detail"]
 
         return chat_response_text
 
 
-async def response_to_user_whatsapp(message: str, user: User, from_number: str, body, intro_message=False):
+async def response_to_user_whatsapp(message: str, from_number: str, body, intro_message=False):
     # Initialize user message to the body of the request
-    uuid = user.khojuser.uuid
     user_message = message
-    user_message_type = "text"
 
     value = body["entry"][0]["changes"][0]["value"]
     phone_number_id = value["metadata"]["phone_number_id"]
@@ -250,52 +215,36 @@ async def response_to_user_whatsapp(message: str, user: User, from_number: str, 
     if intro_message:
         data = make_whatsapp_payload(KHOJ_INTRO_MESSAGE, from_number)
         response = requests.post(url, json=data, headers=headers)
-        asyncio.create_task(
-            save_conversation(user=user, message="", response=KHOJ_INTRO_MESSAGE, user_message_type="system")
-        )
         return Response(status_code=200)
 
-    # Get Conversation History
-    logger.info(f"Retrieving conversation history for {uuid}")
-
-    # Get Conversation History
-    chat_history = state.conversation_sessions.get(uuid, None)
-    if chat_history is None:
-        logger.info(f"Attempting to retrieve conversation history for user {uuid}")
-        state.conversation_sessions[uuid] = await get_recent_conversations(user, uuid)
-        chat_history = state.conversation_sessions[uuid]
-
-    try:
-        logger.info(f"Preparing prompt for {uuid}")
-        user_message, formatted_history_message, adjusted_memory_buffer = prepare_prompt(
-            chat_history=chat_history,
-            relevant_previous_conversations=[],
-            user_message=user_message,
-            model_name=state.MODEL_NAME,
-        )
-    except Exception as e:
-        logger.error(f"Failed to prepare prompt: {e}", exc_info=True)
-        return
-
-    if formatted_history_message != None:
-        asyncio.create_task(save_conversation(user, "", formatted_history_message, user_message_type="system"))
-
     # Get Response from Agent
-    logger.info(f"Sending prompt to LLM for user {uuid}")
-    chat_response = LLMChain(llm=state.llm, prompt=configure_chat_prompt(), memory=adjusted_memory_buffer)(
-        {"question": user_message}
-    )
-    chat_response_text = chat_response["text"]
+    chat_response = send_message_to_khoj_chat(user_message, from_number)
 
-    asyncio.create_task(
-        save_conversation(
-            user=user, message=user_message, response=chat_response_text, user_message_type=user_message_type
-        )
-    )
+    if chat_response.get("response"):
+        chat_response_text = chat_response["response"]
+        data = make_whatsapp_payload(chat_response_text, from_number)
+        response = requests.post(url, json=data, headers=headers)
+        response.raise_for_status()
+    elif chat_response.get("image"):
+        encoded_img = chat_response["image"]
+        if encoded_img:
+            # Write the file to a tmp directory
+            filepath = f"/tmp/{int(time.time() * 1000)}.png"
+            with open(filepath, "wb") as f:
+                f.write(base64.b64decode(encoded_img))
 
-    # Split response into 1600 character chunks
-    data = make_whatsapp_payload(chat_response_text, from_number)
-    response = requests.post(url, json=data, headers=headers)
-    response.raise_for_status()
+                media_id = upload_media_to_whatsapp(filepath, "image/png", phone_number_id)
+                data = make_whatsapp_image_payload(media_id, from_number)
+                response = requests.post(url, json=data, headers=headers)
+                response.raise_for_status()
+            os.remove(filepath)
+    elif chat_response.get("detail"):
+        chat_response_text = chat_response["detail"]
+        data = make_whatsapp_payload(chat_response_text, from_number)
+        response = requests.post(url, json=data, headers=headers)
+        response.raise_for_status()
+    else:
+        logger.error(f"Unsupported response type: {chat_response}", exc_info=True)
+        return Response(status_code=400)
 
     return Response(status_code=200)
