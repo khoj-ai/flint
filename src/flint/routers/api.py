@@ -178,12 +178,12 @@ if DEBUG:
     @api.post("/dev/chat")
     async def chat_dev(
         request: Request,
-        Body: str,
+        body=Body(...),
         phone_number: Optional[str] = Form(None),
     ) -> Response:
-        chat_response = send_message_to_khoj_chat(Body, phone_number)
+        chat_response = send_message_to_khoj_chat(body, phone_number)
 
-        if chat_response.get("image", None):
+        if chat_response.get("image"):
             encoded_img = chat_response["image"]
             if encoded_img:
                 # Write the file to a tmp directory
@@ -191,9 +191,9 @@ if DEBUG:
                 with open(filepath, "wb") as f:
                     f.write(base64.b64decode(encoded_img))
             chat_response_text = f"Image saved to {filepath}"
-        elif chat_response.get("response", None):
+        elif chat_response.get("response"):
             chat_response_text = chat_response["response"]
-        elif chat_response.get("detail", None):
+        elif chat_response.get("detail"):
             chat_response_text = chat_response["detail"]
 
         return chat_response_text
@@ -220,12 +220,12 @@ async def response_to_user_whatsapp(message: str, from_number: str, body, intro_
     # Get Response from Agent
     chat_response = send_message_to_khoj_chat(user_message, from_number)
 
-    if chat_response.get("response", None):
+    if chat_response.get("response"):
         chat_response_text = chat_response["response"]
         data = make_whatsapp_payload(chat_response_text, from_number)
         response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()
-    elif chat_response.get("image", None):
+    elif chat_response.get("image"):
         encoded_img = chat_response["image"]
         if encoded_img:
             # Write the file to a tmp directory
@@ -238,6 +238,11 @@ async def response_to_user_whatsapp(message: str, from_number: str, body, intro_
                 response = requests.post(url, json=data, headers=headers)
                 response.raise_for_status()
             os.remove(filepath)
+    elif chat_response.get("detail"):
+        chat_response_text = chat_response["detail"]
+        data = make_whatsapp_payload(chat_response_text, from_number)
+        response = requests.post(url, json=data, headers=headers)
+        response.raise_for_status()
     else:
         logger.error(f"Unsupported response type: {chat_response}", exc_info=True)
         return Response(status_code=400)
