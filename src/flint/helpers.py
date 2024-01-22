@@ -24,11 +24,11 @@ COMMANDS = {
     "/online": "/online",
     "/dream": "/image",
     "/general": "/general",
+    "/notes": "/notes",
 }
 
 UNIMPLEMENTED_COMMANDS = {
     "/notes": "/notes",
-    "/speak": "/speak",
 }
 
 
