@@ -18,13 +18,13 @@ services:
     ports:
       - "8488:8488"
     environment:
-      - TWILIO_ACCOUNT_SID=foo
-      - TWILIO_AUTH_TOKEN=bar
-      - OPENAI_API_KEY=sk-bob
       - POSTGRES_HOST=database
       - DEBUG=true
       - WHATSAPP_TOKEN=EAAblah
       - WHATSAPP_VERIFY_TOKEN=blah
+      - KHOJ_API_URL=http://localhost:42110
+      - KHOJ_API_CLIENT_ID=blah
+      - KHOJ_API_CLIENT_SECRET=blah
     depends_on:
       - database
     volumes:
