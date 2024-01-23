@@ -12,8 +12,7 @@ import schedule
 from django.core.management import call_command
 
 # Internal Packages
-from flint.configure import configure_routes, initialize_conversation_sessions
-from flint import state
+from flint.configure import configure_routes
 
 # Setup Logger
 rich_handler = RichHandler(rich_tracebacks=True)
@@ -60,13 +59,6 @@ def poll_task_scheduler():
 
 
 def run(should_start_server=True):
-    try:
-        state.conversation_sessions = initialize_conversation_sessions()
-    except Exception as e:
-        logger.error(
-            f"Failed to initialize conversation sessions: {e}. You may need to run python src/flint/manage.py migrate",
-            exc_info=True,
-        )
     configure_routes(app)
     poll_task_scheduler()
     if should_start_server:
