@@ -35,12 +35,8 @@ dependencies = [
     "schedule == 1.1.0",
     "python-multipart >= 0.0.6",
     "openai >= 0.27.8",
-    "django == 4.2.4",
-    "psycopg2-binary == 2.9.6",
-    "pgvector >= 0.2.1",
-    "django-phonenumber-field == 7.1.0",
-    "phonenumbers == 8.13.17",
     "gunicorn == 21.2.0",
+    "requests == 2.31.0",
  ]
 dynamic = ["version"]
 

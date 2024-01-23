@@ -9,7 +9,6 @@ from rich.logging import RichHandler
 import uvicorn
 from fastapi import Request
 import schedule
-from django.core.management import call_command
 
 # Internal Packages
 from flint.configure import configure_routes
@@ -29,8 +28,6 @@ if os.getenv("DEBUG", False):
 else:
     app = FastAPI(docs_url=None, redoc_url=None)
     log_group = "flint"
-
-call_command("migrate", "--noinput")
 
 
 @app.middleware("http")
