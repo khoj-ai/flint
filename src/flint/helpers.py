@@ -28,7 +28,7 @@ COMMANDS = {
 }
 
 UNIMPLEMENTED_COMMANDS = {
-    "/notes": "/notes",
+    "/speak": "/speak",
 }
 
 

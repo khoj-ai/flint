@@ -1,5 +1,4 @@
 # Standard Packages
-import asyncio
 import logging
 import os
 import requests
@@ -9,7 +8,7 @@ import uuid
 from typing import Optional
 
 # External Packages
-from fastapi import APIRouter, status, Request
+from fastapi import APIRouter, status, Request, BackgroundTasks
 from fastapi.responses import Response
 from fastapi.params import Form
 from fastapi import Body
@@ -26,9 +25,6 @@ from flint.constants import (
     KHOJ_INTRO_MESSAGE,
     KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE,
 )
-
-# Keep Django module import here to avoid import ordering errors
-
 
 # Initialize Router
 api = APIRouter()
@@ -84,9 +80,11 @@ async def whatsapp_chat(
 @api.post("/whatsapp_chat", status_code=status.HTTP_200_OK)
 async def whatsapp_chat_post(
     request: Request,
+    background_tasks: BackgroundTasks,
     body=Body(...),
 ):
-    asyncio.create_task(handle_message(body=body))
+    background_tasks.add_task(handle_message, body)
+    return
 
 
 def verified_body(body):
