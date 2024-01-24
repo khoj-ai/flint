@@ -1,4 +1,5 @@
 # Standard Packages
+import asyncio
 import logging
 import os
 import requests
@@ -8,7 +9,7 @@ import uuid
 from typing import Optional
 
 # External Packages
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, status, Request
 from fastapi.responses import Response
 from fastapi.params import Form
 from fastapi import Body
@@ -80,13 +81,12 @@ async def whatsapp_chat(
     return verify(request)
 
 
-@api.post("/whatsapp_chat")
+@api.post("/whatsapp_chat", status_code=status.HTTP_200_OK)
 async def whatsapp_chat_post(
     request: Request,
     body=Body(...),
 ):
-    await handle_message(body=body)
-    return Response(status_code=200)
+    asyncio.create_task(handle_message(body=body))
 
 
 def verified_body(body):
@@ -147,7 +147,8 @@ async def handle_whatsapp_message(body):
             message_body = handle_audio_message(audio_id)
         except ValueError as e:
             logger.error(f"Failed to handle audio message: {e}", exc_info=True)
-            raise HTTPException(status_code=400, detail=KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE)
+            await response_to_user_whatsapp(KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, from_number, body, intro_message)
+            return
     await response_to_user_whatsapp(message_body, from_number, body, intro_message)
 
 
@@ -215,7 +216,8 @@ async def response_to_user_whatsapp(message: str, from_number: str, body, intro_
     if intro_message:
         data = make_whatsapp_payload(KHOJ_INTRO_MESSAGE, from_number)
         response = requests.post(url, json=data, headers=headers)
-        return Response(status_code=200)
+        logger.info(f"Intro message sent to {from_number}")
+        response.raise_for_status()
 
     # Get Response from Agent
     chat_response = send_message_to_khoj_chat(user_message, from_number)
@@ -245,6 +247,3 @@ async def response_to_user_whatsapp(message: str, from_number: str, body, intro_
         response.raise_for_status()
     else:
         logger.error(f"Unsupported response type: {chat_response}", exc_info=True)
-        return Response(status_code=400)
-
-    return Response(status_code=200)
