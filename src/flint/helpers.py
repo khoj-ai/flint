@@ -11,7 +11,6 @@ import openai
 import requests
 
 # Internal Packages
-from flint.state import telemetry
 from flint.constants import KHOJ_API_URL, KHOJ_API_CLIENT_SECRET, KHOJ_API_CLIENT_ID
 
 whatsapp_token = os.getenv("WHATSAPP_TOKEN")
@@ -47,27 +46,6 @@ def make_whatsapp_payload(body, to):
 
 def make_whatsapp_image_payload(media_id, to):
     return {"type": "image", "image": {"id": media_id}, "to": to, "messaging_product": "whatsapp"}
-
-
-def log_telemetry(
-    telemetry_type: str,
-    user_guid: str,
-    api: str,
-    properties: dict = None,
-):
-    row = {
-        "api": api,
-        "telemetry_type": telemetry_type,
-        "server_id": user_guid,
-        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-        "os": "whatsapp",
-    }
-
-    if properties is None:
-        properties = {}
-
-    row.update(properties)
-    telemetry.append(row)
 
 
 def download_audio_message(audio_url, random_id):
