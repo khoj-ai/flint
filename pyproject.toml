@@ -9,7 +9,7 @@ readme = "README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.10"
 authors = [
-    { name = "Debanjum Singh Solanky, Saba Imran" },
+    { name = "Saba Imran, Debanjum Singh Solanky" },
 ]
 keywords = [
     "productivity",

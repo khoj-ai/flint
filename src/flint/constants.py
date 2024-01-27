@@ -1,6 +1,5 @@
 import os
 
-telemetry_server = "https://khoj.beta.haletic.com/v1/telemetry"
 KHOJ_WHATSAPP_PROD = "whatsapp:+18488004242"
 KHOJ_WHATSAPP_DEBUG = "whatsapp:+14155238886"
 KHOJ_INTRO_MESSAGE = f"""
@@ -20,6 +19,6 @@ KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE = f"""
 Sorry, I wasn't able to understand your voice message this time. Could you please try typing out your message or send a shorter message? If you'd like to help me improve, email my creators at team@khoj.dev.
 """.strip()
 
-KHOJ_API_URL = os.getenv("KHOJ_API_URL", "https://khoj.dev")
+KHOJ_API_URL = os.getenv("KHOJ_API_URL", "https://app.khoj.dev")
 KHOJ_API_CLIENT_ID = os.getenv("KHOJ_API_CLIENT_ID")
 KHOJ_API_CLIENT_SECRET = os.getenv("KHOJ_API_CLIENT_SECRET")

@@ -5,12 +5,10 @@ import requests
 import time
 import base64
 import uuid
-from typing import Optional
 
 # External Packages
 from fastapi import APIRouter, status, Request, BackgroundTasks
 from fastapi.responses import Response
-from fastapi.params import Form
 from fastapi import Body
 
 # Internal Packages
@@ -26,23 +24,32 @@ from flint.constants import (
     KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE,
 )
 
+
 # Initialize Router
-api = APIRouter()
-logger = logging.getLogger(__name__)
-
-MAX_CHARACTERS_TWILIO = 1600
-MAX_CHARACTERS_PROMPT = 1000
-
-DEBUG = os.getenv("DEBUG", False)
-
 whatsapp_token = os.getenv("WHATSAPP_TOKEN")
-
 verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "verify_token")
+logger = logging.getLogger(__name__)
+api = APIRouter()
 
 
 @api.get("/health")
 async def health() -> Response:
     return Response(status_code=200)
+
+
+@api.get("/whatsapp_chat")
+async def whatsapp_chat(request: Request):
+    return verify(request)
+
+
+@api.post("/whatsapp_chat", status_code=status.HTTP_200_OK)
+async def whatsapp_chat_post(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    body=Body(...),
+):
+    background_tasks.add_task(handle_message, body)
+    return
 
 
 # Required webhook verification for WhatsApp
@@ -68,23 +75,6 @@ def verify(request):
         # Responds with '400 Bad Request' if verify tokens do not match
         logger.error("MISSING_PARAMETER")
         return Response(status_code=400)
-
-
-@api.get("/whatsapp_chat")
-async def whatsapp_chat(
-    request: Request,
-):
-    return verify(request)
-
-
-@api.post("/whatsapp_chat", status_code=status.HTTP_200_OK)
-async def whatsapp_chat_post(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    body=Body(...),
-):
-    background_tasks.add_task(handle_message, body)
-    return
 
 
 def verified_body(body):
@@ -170,32 +160,6 @@ def get_media_url(media_id):
         logger.info(f"Audio message is larger than 10 MB, skipping")
         raise ValueError(f"Audio message is larger than 10 MB")
     return response["url"]
-
-
-if DEBUG:
-    # Setup API Endpoints
-    @api.post("/dev/chat")
-    async def chat_dev(
-        request: Request,
-        body=Body(...),
-        phone_number: Optional[str] = Form(None),
-    ) -> Response:
-        chat_response = send_message_to_khoj_chat(body, phone_number)
-
-        if chat_response.get("image"):
-            encoded_img = chat_response["image"]
-            if encoded_img:
-                # Write the file to a tmp directory
-                filepath = f"/tmp/{int(time.time() * 1000)}.png"
-                with open(filepath, "wb") as f:
-                    f.write(base64.b64decode(encoded_img))
-            chat_response_text = f"Image saved to {filepath}"
-        elif chat_response.get("response"):
-            chat_response_text = chat_response["response"]
-        elif chat_response.get("detail"):
-            chat_response_text = chat_response["detail"]
-
-        return chat_response_text
 
 
 async def response_to_user_whatsapp(message: str, from_number: str, body, intro_message=False):

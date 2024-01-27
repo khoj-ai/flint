@@ -24,10 +24,8 @@ logger = logging.getLogger()
 # Initialize the Application Server
 if os.getenv("DEBUG", False):
     app = FastAPI()
-    log_group = "flint-dev"
 else:
     app = FastAPI(docs_url=None, redoc_url=None)
-    log_group = "flint"
 
 
 @app.middleware("http")
