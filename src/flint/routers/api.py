@@ -3,7 +3,6 @@ import logging
 import os
 import requests
 import time
-import base64
 import uuid
 
 # External Packages
@@ -190,12 +189,15 @@ async def response_to_user_whatsapp(message: str, from_number: str, body, intro_
         response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()
     elif chat_response.get("image"):
-        encoded_img = chat_response["image"]
-        if encoded_img:
+        media_url = chat_response["image"]
+        if media_url:
             # Write the file to a tmp directory
             filepath = f"/tmp/{int(time.time() * 1000)}.png"
+            response = requests.get(media_url)
+            response.raise_for_status()
+
             with open(filepath, "wb") as f:
-                f.write(base64.b64decode(encoded_img))
+                f.write(response.content)
 
                 media_id = upload_media_to_whatsapp(filepath, "image/png", phone_number_id)
                 data = make_whatsapp_image_payload(media_id, from_number)
