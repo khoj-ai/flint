@@ -2,6 +2,7 @@
 import logging
 import os
 import requests
+from requests import Session
 import time
 import uuid
 
@@ -17,18 +18,25 @@ from flint.helpers import (
     send_message_to_khoj_chat,
     make_whatsapp_image_payload,
     upload_media_to_whatsapp,
+    upload_document_to_khoj,
 )
 from flint.constants import (
     KHOJ_INTRO_MESSAGE,
     KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE,
+    KHOJ_FAILED_DOCUMENT_UPLOAD_MESSAGE,
+    KHOJ_MEDIA_NOT_IMPLEMENTED_MESSAGE,
 )
 
 
 # Initialize Router
+whatsapp_cloud_api_session = Session()
 whatsapp_token = os.getenv("WHATSAPP_TOKEN")
+whatsapp_cloud_api_session.headers.update({"Authorization": f"Bearer {whatsapp_token}"})
 verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "verify_token")
 logger = logging.getLogger(__name__)
 api = APIRouter()
+
+SUPPORTED_FILE_TYPES = ["audio/ogg", "text/plain", "application/pdf"]
 
 
 @api.get("/health")
@@ -134,51 +142,91 @@ async def handle_whatsapp_message(body):
             message_body = handle_audio_message(audio_id)
         except ValueError as e:
             logger.error(f"Failed to handle audio message: {e}", exc_info=True)
-            await response_to_user_whatsapp(KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, from_number, body, intro_message)
+            await response_to_user_whatsapp(
+                KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE, from_number, body, intro_message, direct_message=True
+            )
             return
+    elif message["type"] == "document":
+        logger.info("document message received")
+        document_id = message["document"]["id"]
+        try:
+            success = handle_document_message(document_id, from_number)
+            if success:
+                message_body = "Thanks for sharing this document with me! I've uploaded it to your Khoj account."
+            else:
+                message_body = KHOJ_FAILED_DOCUMENT_UPLOAD_MESSAGE
+            await response_to_user_whatsapp(message_body, from_number, body, intro_message, direct_message=True)
+            return
+        except ValueError as e:
+            logger.error(f"Failed to handle document message: {e}", exc_info=True)
+            await response_to_user_whatsapp(
+                KHOJ_FAILED_DOCUMENT_UPLOAD_MESSAGE, from_number, body, intro_message, direct_message=True
+            )
+            return
+    elif message["type"] == "reaction":
+        logger.info(f"reaction message received: {message['reaction']['emoji']}")
+        return
+    else:
+        logger.error(f"Unsupported message type: {message['type']}", exc_info=True)
+        await response_to_user_whatsapp(
+            KHOJ_MEDIA_NOT_IMPLEMENTED_MESSAGE, from_number, body, intro_message, direct_message=True
+        )
+        return
     await response_to_user_whatsapp(message_body, from_number, body, intro_message)
 
 
 # handle audio messages
 def handle_audio_message(audio_id):
     random_uuid = uuid.uuid4()
-    audio_url = get_media_url(audio_id)
+    audio_url, mime_type = get_media_url(audio_id)
     return transcribe_audio_message(audio_url, random_uuid, logger)
+
+
+# handle document messages
+def handle_document_message(document_id, phone_id):
+    random_uuid = uuid.uuid4()
+    document_url, mime_type = get_media_url(document_id)
+    return upload_document_to_khoj(document_url, random_uuid, phone_id, mime_type)
 
 
 # get the media url from the media id
 def get_media_url(media_id):
-    headers = {
-        "Authorization": f"Bearer {whatsapp_token}",
-    }
     url = f"https://graph.facebook.com/v16.0/{media_id}/"
-    response = requests.get(url, headers=headers).json()
+    response = whatsapp_cloud_api_session.get(url).json()
+    mime_type = response["mime_type"]
+    if mime_type not in SUPPORTED_FILE_TYPES:
+        logger.info(f"Unsupported file type: {mime_type}")
+        raise ValueError(f"Unsupported file type: {mime_type}")
+
     file_size = response["file_size"]
-    # If the audio message is larger than 10 MB, return None
+    # If the media is larger than 10 MB, return None
     if int(file_size) > 10 * 1024 * 1024:
-        logger.info(f"Audio message is larger than 10 MB, skipping")
-        raise ValueError(f"Audio message is larger than 10 MB")
-    return response["url"]
+        logger.info(f"Media is larger than 10 MB, skipping")
+        raise ValueError(f"Media is larger than 10 MB")
+    return response["url"], response["mime_type"]
 
 
-async def response_to_user_whatsapp(message: str, from_number: str, body, intro_message=False):
+async def response_to_user_whatsapp(message: str, from_number: str, body, intro_message=False, direct_message=False):
     # Initialize user message to the body of the request
     user_message = message
 
     value = body["entry"][0]["changes"][0]["value"]
     phone_number_id = value["metadata"]["phone_number_id"]
-    headers = {
-        "Authorization": f"Bearer {whatsapp_token}",
-        "Content-Type": "application/json",
-    }
     url = "https://graph.facebook.com/v17.0/" + phone_number_id + "/messages"
 
     # Send Intro Message
     if intro_message:
         data = make_whatsapp_payload(KHOJ_INTRO_MESSAGE, from_number)
-        response = requests.post(url, json=data, headers=headers)
+        response = whatsapp_cloud_api_session.post(url, json=data)
         logger.info(f"Intro message sent to {from_number}")
         response.raise_for_status()
+
+    if direct_message:
+        # We've constructed a templated response to the user. No need to route to the LLM.
+        data = make_whatsapp_payload(user_message, from_number)
+        response = whatsapp_cloud_api_session.post(url, json=data)
+        response.raise_for_status()
+        return
 
     # Get Response from Agent
     chat_response = send_message_to_khoj_chat(user_message, from_number)
@@ -186,7 +234,7 @@ async def response_to_user_whatsapp(message: str, from_number: str, body, intro_
     if chat_response.get("response"):
         chat_response_text = chat_response["response"]
         data = make_whatsapp_payload(chat_response_text, from_number)
-        response = requests.post(url, json=data, headers=headers)
+        response = whatsapp_cloud_api_session.post(url, json=data)
         response.raise_for_status()
     elif chat_response.get("image"):
         media_url = chat_response["image"]
@@ -201,13 +249,13 @@ async def response_to_user_whatsapp(message: str, from_number: str, body, intro_
 
                 media_id = upload_media_to_whatsapp(filepath, "image/png", phone_number_id)
                 data = make_whatsapp_image_payload(media_id, from_number)
-                response = requests.post(url, json=data, headers=headers)
+                response = whatsapp_cloud_api_session.post(url, json=data)
                 response.raise_for_status()
             os.remove(filepath)
     elif chat_response.get("detail"):
         chat_response_text = chat_response["detail"]
         data = make_whatsapp_payload(chat_response_text, from_number)
-        response = requests.post(url, json=data, headers=headers)
+        response = whatsapp_cloud_api_session.post(url, json=data)
         response.raise_for_status()
     else:
         logger.error(f"Unsupported response type: {chat_response}", exc_info=True)

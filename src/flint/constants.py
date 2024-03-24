@@ -19,6 +19,14 @@ KHOJ_FAILED_AUDIO_TRANSCRIPTION_MESSAGE = f"""
 Sorry, I wasn't able to understand your voice message this time. Could you please try typing out your message or send a shorter message? If you'd like to help me improve, email my creators at team@khoj.dev.
 """.strip()
 
+KHOJ_FAILED_DOCUMENT_UPLOAD_MESSAGE = f"""
+Sorry, I wasn't able to process your document this time. Could you please try sending a different document? If you'd like to help me improve, email my creators at team@khoj.dev.
+""".strip()
+
+KHOJ_MEDIA_NOT_IMPLEMENTED_MESSAGE = f"""
+Sorry, I'm not yet able to process this type of media. Could you please try sending a different type of media? If you'd like to help me improve, email my creators at team@khoj.dev.
+""".strip()
+
 KHOJ_API_URL = os.getenv("KHOJ_API_URL", "https://app.khoj.dev")
 KHOJ_API_CLIENT_ID = os.getenv("KHOJ_API_CLIENT_ID")
 KHOJ_API_CLIENT_SECRET = os.getenv("KHOJ_API_CLIENT_SECRET")
