@@ -8,16 +8,22 @@ import urllib.parse
 
 # External Packages
 import openai
-import requests
+from requests import Session
 
 # Internal Packages
 from flint.constants import KHOJ_API_URL, KHOJ_API_CLIENT_SECRET, KHOJ_API_CLIENT_ID
 
-whatsapp_token = os.getenv("WHATSAPP_TOKEN")
+whatsapp_cloud_api_session = Session()
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+whatsapp_cloud_api_session.headers.update({"Authorization": f"Bearer {WHATSAPP_TOKEN}"})
 
 logger = logging.getLogger(__name__)
 
 KHOJ_CHAT_API_ENDPOINT = f"{KHOJ_API_URL}/api/chat?client_id={KHOJ_API_CLIENT_ID}"
+KHOJ_INDEX_API_ENDPOINT = f"{KHOJ_API_URL}/api/v1/index/update?client_id={KHOJ_API_CLIENT_ID}&client=whatsapp"
+
+KHOJ_CLOUD_API_SESSION = Session()
+KHOJ_CLOUD_API_SESSION.headers.update({"Authorization": f"Bearer {KHOJ_API_CLIENT_SECRET}"})
 
 COMMANDS = {
     "/online": "/online",
@@ -48,20 +54,36 @@ def make_whatsapp_image_payload(media_id, to):
     return {"type": "image", "image": {"id": media_id}, "to": to, "messaging_product": "whatsapp"}
 
 
-def download_audio_message(audio_url, random_id):
-    headers = {
-        "Authorization": f"Bearer {whatsapp_token}",
-    }
-    response = requests.get(audio_url, headers=headers)
+def download_media(url, filepath):
+    response = whatsapp_cloud_api_session.get(url)
 
-    # Create output file path with user_id and current timestamp
-    filepath = f"/tmp/{random_id}_audio_{int(time.time() * 1000)}.ogg"
     # Download the voice message OGG file
     with open(filepath, "wb") as f:
         f.write(response.content)
 
     # Return file path to audio message
     return os.path.join(os.getcwd(), filepath)
+
+
+def upload_document_to_khoj(document_url, random_id, phone_id, mime_type):
+    file_ending = mime_type.split("/")[1]
+    document_filepath = download_media(
+        document_url, f"/tmp/{random_id}_document_{int(time.time() * 1000)}.{file_ending}"
+    )
+
+    encoded_phone_number = urllib.parse.quote(phone_id)
+
+    with open(document_filepath, "rb") as f:
+        files = [
+            ("files", (document_filepath, f, mime_type)),
+        ]
+        khoj_api = f"{KHOJ_INDEX_API_ENDPOINT}&phone_number={encoded_phone_number}&create_if_not_exists=true"
+        response = KHOJ_CLOUD_API_SESSION.post(khoj_api, files=files)
+
+    if response.status_code == 200:
+        return "Document uploaded successfully"
+    else:
+        response.raise_for_status()
 
 
 def transcribe_audio_message(audio_url: str, uuid: str, logger: Logger) -> str:
@@ -71,7 +93,7 @@ def transcribe_audio_message(audio_url: str, uuid: str, logger: Logger) -> str:
 
     try:
         # Download audio file
-        audio_message_file = download_audio_message(audio_url, uuid)
+        audio_message_file = download_media(audio_url, f"/tmp/{uuid}_audio_{int(time.time() * 1000)}.ogg")
     except Exception as e:
         logger.error(f"Failed to download audio by {uuid} with error {e}", exc_info=True)
         return None
@@ -103,6 +125,7 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
     """
     Send the user message to the backend LLM service and return the response
     """
+    start_time = time.time()
     encoded_phone_number = urllib.parse.quote(user_number)
 
     if user_message.startswith(tuple(UNIMPLEMENTED_COMMANDS.keys())):
@@ -121,12 +144,14 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
 
     encoded_user_message = urllib.parse.quote(user_message)
 
-    headers = {
-        "Authorization": f"Bearer {KHOJ_API_CLIENT_SECRET}",
-    }
-
     khoj_api = f"{KHOJ_CHAT_API_ENDPOINT}&phone_number={encoded_phone_number}&q={encoded_user_message}&stream=false&create_if_not_exists=true"
-    response = requests.get(khoj_api, headers=headers)
+    response = KHOJ_CLOUD_API_SESSION.get(khoj_api)
+
+    end_time = time.time()
+    response_time = end_time - start_time
+    formatted_response_time = "{:.2f}".format(response_time)
+    logger.info(f"Khoj chat response time: {formatted_response_time} seconds")
+
     if response.status_code == 200:
         return response.json()
     elif response.status_code == 429:
@@ -137,10 +162,6 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
 
 
 def upload_media_to_whatsapp(media_filepath: str, media_type: str, phone_id: str) -> str:
-    headers = {
-        "Authorization": f"Bearer {whatsapp_token}",
-    }
-
     with open(media_filepath, "rb") as f:
         files = {
             "file": (media_filepath, f, media_type),
@@ -148,7 +169,7 @@ def upload_media_to_whatsapp(media_filepath: str, media_type: str, phone_id: str
             "messaging_product": (None, "whatsapp"),
         }
 
-        response = requests.post(f"https://graph.facebook.com/v18.0/{phone_id}/media", headers=headers, files=files)
+        response = whatsapp_cloud_api_session.post(f"https://graph.facebook.com/v18.0/{phone_id}/media", files=files)
 
     if response.status_code == 200:
         response_json = response.json()
