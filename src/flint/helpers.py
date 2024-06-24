@@ -152,13 +152,29 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
     formatted_response_time = "{:.2f}".format(response_time)
     logger.info(f"Khoj chat response time: {formatted_response_time} seconds")
 
-    if response.status_code == 200:
-        return response.json()
-    elif response.status_code == 429:
-        return response.json()
-    else:
-        logger.error(f"Failed to get response from Khoj. Error: {response.json()}")
-        return {"response": "Sorry, I'm having trouble understanding you. Could you please try again?"}
+    try:
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 429:
+            # Handle rate limiting specifically
+            return {
+                "response": "We're so happy you're loving Khoj! If you'd like to chat more frequently, please subscribe: https://khoj.dev/pricing."
+            }
+        else:
+            # Attempt to parse error details from the response
+            try:
+                error_details = response.json()
+            except ValueError:
+                # If response is not JSON, use the status text
+                error_details = response.text or response.reason
+
+            logger.error(
+                f"Failed to get response from Khoj. Status code: {response.status_code}, Error: {error_details}"
+            )
+            return {"response": "Sorry, I'm having trouble understanding you. Could you please try again?"}
+    except Exception as e:
+        logger.exception("An unexpected error occurred while processing the response from Khoj.")
+        return {"response": "I encountered an unexpected issue. Could you please try again?"}
 
 
 def upload_media_to_whatsapp(media_filepath: str, media_type: str, phone_id: str) -> str:
