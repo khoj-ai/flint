@@ -27,15 +27,17 @@ async def chat_dev(
 
     if chat_response.get("response"):
         response = chat_response.get("response")
-        if response.get("image"):
-            encoded_img = response["image"]
-            if encoded_img:
-                # Write the file to a tmp directory
-                filepath = f"/tmp/{int(time.time() * 1000)}.png"
-                with open(filepath, "wb") as f:
-                    f.write(base64.b64decode(encoded_img))
-            chat_response_text = f"Image saved to {filepath}"
-        else:
+        # Try parsing to see if the response is a JSON object
+        try:
+            if response.get("image"):
+                encoded_img = response["image"]
+                if encoded_img:
+                    # Write the file to a tmp directory
+                    filepath = f"/tmp/{int(time.time() * 1000)}.png"
+                    with open(filepath, "wb") as f:
+                        f.write(base64.b64decode(encoded_img))
+                chat_response_text = f"Image saved to {filepath}"
+        except AttributeError:
             chat_response_text = chat_response["response"]
     elif chat_response.get("detail"):
         chat_response_text = chat_response["detail"]
