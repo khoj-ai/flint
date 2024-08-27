@@ -37,6 +37,7 @@ dependencies = [
     "openai >= 0.27.8",
     "gunicorn == 21.2.0",
     "requests == 2.31.0",
+    "pillow == 10.4.0",
  ]
 dynamic = ["version"]
 
