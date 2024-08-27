@@ -5,6 +5,8 @@ import requests
 from requests import Session
 import time
 import uuid
+from io import BytesIO
+from PIL import Image
 
 # External Packages
 from fastapi import APIRouter, status, Request, BackgroundTasks
@@ -241,13 +243,14 @@ async def response_to_user_whatsapp(message: str, from_number: str, body, intro_
                 response = requests.get(media_url)
                 response.raise_for_status()
 
-                with open(filepath, "wb") as f:
-                    f.write(response.content)
+                # The incoming image is a link to a webp image. We need to convert it to a png image.
+                image = Image.open(BytesIO(response.content))
+                image.save(filepath, "PNG")
 
-                    media_id = upload_media_to_whatsapp(filepath, "image/png", phone_number_id)
-                    data = make_whatsapp_image_payload(media_id, from_number)
-                    response = whatsapp_cloud_api_session.post(url, json=data)
-                    response.raise_for_status()
+                media_id = upload_media_to_whatsapp(filepath, "image/png", phone_number_id)
+                data = make_whatsapp_image_payload(media_id, from_number)
+                response = whatsapp_cloud_api_session.post(url, json=data)
+                response.raise_for_status()
                 os.remove(filepath)
         else:
             data = make_whatsapp_payload(chat_response_text, from_number)
