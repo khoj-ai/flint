@@ -25,16 +25,18 @@ async def chat_dev(
 ) -> Response:
     chat_response = send_message_to_khoj_chat(body, phone_number)
 
-    if chat_response.get("image"):
-        encoded_img = chat_response["image"]
-        if encoded_img:
-            # Write the file to a tmp directory
-            filepath = f"/tmp/{int(time.time() * 1000)}.png"
-            with open(filepath, "wb") as f:
-                f.write(base64.b64decode(encoded_img))
-        chat_response_text = f"Image saved to {filepath}"
-    elif chat_response.get("response"):
-        chat_response_text = chat_response["response"]
+    if chat_response.get("response"):
+        response = chat_response.get("response")
+        if response.get("image"):
+            encoded_img = response["image"]
+            if encoded_img:
+                # Write the file to a tmp directory
+                filepath = f"/tmp/{int(time.time() * 1000)}.png"
+                with open(filepath, "wb") as f:
+                    f.write(base64.b64decode(encoded_img))
+            chat_response_text = f"Image saved to {filepath}"
+        else:
+            chat_response_text = chat_response["response"]
     elif chat_response.get("detail"):
         chat_response_text = chat_response["detail"]
 

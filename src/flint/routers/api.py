@@ -233,25 +233,26 @@ async def response_to_user_whatsapp(message: str, from_number: str, body, intro_
 
     if chat_response.get("response"):
         chat_response_text = chat_response["response"]
-        data = make_whatsapp_payload(chat_response_text, from_number)
-        response = whatsapp_cloud_api_session.post(url, json=data)
-        response.raise_for_status()
-    elif chat_response.get("image"):
-        media_url = chat_response["image"]
-        if media_url:
-            # Write the file to a tmp directory
-            filepath = f"/tmp/{int(time.time() * 1000)}.png"
-            response = requests.get(media_url)
-            response.raise_for_status()
-
-            with open(filepath, "wb") as f:
-                f.write(response.content)
-
-                media_id = upload_media_to_whatsapp(filepath, "image/png", phone_number_id)
-                data = make_whatsapp_image_payload(media_id, from_number)
-                response = whatsapp_cloud_api_session.post(url, json=data)
+        if chat_response_text.get("image"):
+            media_url = chat_response_text["image"]
+            if media_url:
+                # Write the file to a tmp directory
+                filepath = f"/tmp/{int(time.time() * 1000)}.png"
+                response = requests.get(media_url)
                 response.raise_for_status()
-            os.remove(filepath)
+
+                with open(filepath, "wb") as f:
+                    f.write(response.content)
+
+                    media_id = upload_media_to_whatsapp(filepath, "image/png", phone_number_id)
+                    data = make_whatsapp_image_payload(media_id, from_number)
+                    response = whatsapp_cloud_api_session.post(url, json=data)
+                    response.raise_for_status()
+                os.remove(filepath)
+        else:
+            data = make_whatsapp_payload(chat_response_text, from_number)
+            response = whatsapp_cloud_api_session.post(url, json=data)
+            response.raise_for_status()
     elif chat_response.get("detail"):
         chat_response_text = chat_response["detail"]
         data = make_whatsapp_payload(chat_response_text, from_number)
