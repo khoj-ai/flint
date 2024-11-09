@@ -1,7 +1,7 @@
-<p align="center"><img src="assets/khoj-logo-sideways-200.png" width="230" alt="Khoj Logo"></p>
+<p align="center"><img src="assets/khoj-logo-sideways-500.png" width="250" alt="Khoj Logo"></p>
 
 <div align="center">
-<b>An AI assistant that learns with you as you grow.</b>
+<b>An open, personal AI that grows with you.</b>
 </div>
 
 <br />
@@ -20,8 +20,8 @@
 
 ***
 
-flint is an open source, AI personal assistant.<br />
-You can converse with it anytime over Whatsapp via Twilio.<br />
+Flint makes Khoj, your personal AI, accessible over Whatsapp.<br />
+So you can converse with it easily, on your phone or computer.<br />
 
 ***
 
@@ -29,7 +29,7 @@ You can converse with it anytime over Whatsapp via Twilio.<br />
 
 ## ⭐️ Chat with Khoj on WhatsApp
 
-If you want to start chatting with our cloud-instance of Khoj right away, you have two options:
+If you want to start chatting with our hosted Khoj right away, you have two options:
 
 1. 🪧 Use the QR code
     - Scan the QR code below using your phone's camera.

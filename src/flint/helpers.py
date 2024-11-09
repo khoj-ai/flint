@@ -19,7 +19,7 @@ whatsapp_cloud_api_session.headers.update({"Authorization": f"Bearer {WHATSAPP_T
 
 logger = logging.getLogger(__name__)
 
-KHOJ_CHAT_API_ENDPOINT = f"{KHOJ_API_URL}/api/chat?client_id={KHOJ_API_CLIENT_ID}"
+KHOJ_CHAT_API_ENDPOINT = f"{KHOJ_API_URL}/api/chat?client_id={KHOJ_API_CLIENT_ID}&client=whatsapp"
 KHOJ_INDEX_API_ENDPOINT = f"{KHOJ_API_URL}/api/v1/index/update?client_id={KHOJ_API_CLIENT_ID}&client=whatsapp"
 
 KHOJ_CLOUD_API_SESSION = Session()
@@ -126,7 +126,6 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
     Send the user message to the backend LLM service and return the response
     """
     start_time = time.time()
-    encoded_phone_number = urllib.parse.quote(user_number)
 
     if user_message.startswith(tuple(UNIMPLEMENTED_COMMANDS.keys())):
         return {
@@ -142,13 +141,15 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
     else:
         user_message = f"/default {user_message}"
 
+    encoded_phone_number = urllib.parse.quote(user_number)
     khoj_api = f"{KHOJ_CHAT_API_ENDPOINT}&phone_number={encoded_phone_number}&create_if_not_exists=true"
-
-    body_data = {
-        "q": user_message,
-        "stream": False,
-    }
-    response = KHOJ_CLOUD_API_SESSION.post(khoj_api, json=body_data)
+    response = KHOJ_CLOUD_API_SESSION.post(
+        khoj_api,
+        json={
+            "q": user_message,
+            "stream": False,
+        },
+    )
 
     end_time = time.time()
     response_time = end_time - start_time
@@ -176,7 +177,7 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
             )
             return {"response": "Sorry, I'm having trouble understanding you. Could you please try again?"}
     except Exception as e:
-        logger.exception("An unexpected error occurred while processing the response from Khoj.")
+        logger.exception(f"An unexpected error occurred while processing the response from Khoj.\nError: {e}")
         return {"response": "I encountered an unexpected issue. Could you please try again?"}
 
 
