@@ -142,10 +142,13 @@ def send_message_to_khoj_chat(user_message: str, user_number: str) -> str:
     else:
         user_message = f"/default {user_message}"
 
-    encoded_user_message = urllib.parse.quote(user_message)
+    khoj_api = f"{KHOJ_CHAT_API_ENDPOINT}&phone_number={encoded_phone_number}&create_if_not_exists=true"
 
-    khoj_api = f"{KHOJ_CHAT_API_ENDPOINT}&phone_number={encoded_phone_number}&q={encoded_user_message}&stream=false&create_if_not_exists=true"
-    response = KHOJ_CLOUD_API_SESSION.get(khoj_api)
+    body_data = {
+        "q": user_message,
+        "stream": False,
+    }
+    response = KHOJ_CLOUD_API_SESSION.post(khoj_api, json=body_data)
 
     end_time = time.time()
     response_time = end_time - start_time
